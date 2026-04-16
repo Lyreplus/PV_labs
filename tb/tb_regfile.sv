@@ -23,6 +23,7 @@ module tb_regfile;
     int cycle_count;
     time start_time;
     time end_time;
+    integer log_clear_fh;
 
     reg_if rif0(clk);
     reg_if rif1(clk);
@@ -86,10 +87,10 @@ module tb_regfile;
         .err(rif3.err)
     );
 
-    reg_checker chk0(rif0);
-    reg_checker chk1(rif1);
-    reg_checker chk2(rif2);
-    reg_checker chk3(rif3);
+    reg_checker #(.NAME("regfile_0")) chk0(rif0);
+    reg_checker #(.NAME("regfile_1")) chk1(rif1);
+    reg_checker #(.NAME("regfile_2")) chk2(rif2);
+    reg_checker #(.NAME("regfile_3")) chk3(rif3);
 
     always #5 clk = ~clk;
 
@@ -101,6 +102,15 @@ module tb_regfile;
         clk = 1'b0;
         cycle_count = 0;
         start_time = $time;
+
+        log_clear_fh = $fopen("regfile_0_errors.log", "w");
+        if (log_clear_fh) $fclose(log_clear_fh);
+        log_clear_fh = $fopen("regfile_1_errors.log", "w");
+        if (log_clear_fh) $fclose(log_clear_fh);
+        log_clear_fh = $fopen("regfile_2_errors.log", "w");
+        if (log_clear_fh) $fclose(log_clear_fh);
+        log_clear_fh = $fopen("regfile_3_errors.log", "w");
+        if (log_clear_fh) $fclose(log_clear_fh);
 
         env0 = new("regfile_0", rif0, 32'h10);
         env1 = new("regfile_1", rif1, 32'h20);
@@ -121,6 +131,19 @@ module tb_regfile;
         env1.report();
         env2.report();
         env3.report();
+
+        $display("\nDesign summary (failed tests by requirement)");
+        $display("--------------------------------------");
+        $display("%-12s | %-30s | %s", "Design", "Failed Tests", "Total Errors");
+        $display("%-12s | %-30s | %0d", env0.name, env0.req_fail_list(), env0.total_errors());
+        $display("%-12s | %-30s | %0d", env1.name, env1.req_fail_list(), env1.total_errors());
+        $display("%-12s | %-30s | %0d", env2.name, env2.req_fail_list(), env2.total_errors());
+        $display("%-12s | %-30s | %0d", env3.name, env3.req_fail_list(), env3.total_errors());
+
+        env0.close_logs();
+        env1.close_logs();
+        env2.close_logs();
+        env3.close_logs();
 
         $finish;
     end

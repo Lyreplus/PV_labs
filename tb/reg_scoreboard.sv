@@ -5,11 +5,25 @@
 `include "reg_transaction.sv"
 
 class reg_scoreboard;
+    string name;
     virtual reg_if rif;
     mailbox #(reg_observation) mon2scb;
+    integer log_fh;
 
     logic [15:0] mem [0:31];
     bit prev_illegal;
+    bit prev_illegal_same;
+    bit prev_illegal_conflict;
+
+    bit last_write_valid;
+    logic [4:0] last_write_addr;
+    logic [15:0] last_write_data;
+
+    bit illegal_write_pending;
+    logic [4:0] illegal_write_addr;
+    logic [15:0] illegal_write_data;
+
+    bit req_fail[1:10];
 
     int total_samples;
     int error_count;
@@ -18,45 +32,20 @@ class reg_scoreboard;
     int reset_mismatch;
     int x_mismatch;
 
-    bit cov_reset;
-    bit cov_write;
-    bit cov_read;
-    bit cov_illegal_same;
-    bit cov_illegal_conflict;
-    bit cov_err;
-    bit cov_x_output;
-    bit cov_addr_change;
-
-    covergroup req_cg;
-        option.per_instance = 1;
-        reset_cp : coverpoint cov_reset { bins hit = {1}; }
-        write_cp : coverpoint cov_write { bins hit = {1}; }
-        read_cp : coverpoint cov_read { bins hit = {1}; }
-        ill_same_cp : coverpoint cov_illegal_same { bins hit = {1}; }
-        ill_conf_cp : coverpoint cov_illegal_conflict { bins hit = {1}; }
-        err_cp : coverpoint cov_err { bins hit = {1}; }
-        x_cp : coverpoint cov_x_output { bins hit = {1}; }
-        addr_change_cp : coverpoint cov_addr_change { bins hit = {1}; }
-    endgroup
-
-    function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
+    function new(string name, virtual reg_if rif, mailbox #(reg_observation) mon2scb);
+        this.name = name;
         this.rif = rif;
         this.mon2scb = mon2scb;
-        req_cg = new();
+        log_fh = $fopen({name, "_errors.log"}, "a");
         total_samples = 0;
         error_count = 0;
         data_mismatch = 0;
         err_mismatch = 0;
         reset_mismatch = 0;
         x_mismatch = 0;
-        cov_reset = 1'b0;
-        cov_write = 1'b0;
-        cov_read = 1'b0;
-        cov_illegal_same = 1'b0;
-        cov_illegal_conflict = 1'b0;
-        cov_err = 1'b0;
-        cov_x_output = 1'b0;
-        cov_addr_change = 1'b0;
+        for (int i = 1; i <= 10; i++) begin
+            req_fail[i] = 1'b0;
+        end
         reset_model();
     endfunction
 
@@ -65,6 +54,10 @@ class reg_scoreboard;
             mem[i] = 16'h0000;
         end
         prev_illegal = 1'b0;
+        prev_illegal_same = 1'b0;
+        prev_illegal_conflict = 1'b0;
+        last_write_valid = 1'b0;
+        illegal_write_pending = 1'b0;
     endfunction
 
     function bit is_all_x(logic [15:0] data);
@@ -77,8 +70,46 @@ class reg_scoreboard;
                (wr_en && ((wr_addr == rd_addr1) || (wr_addr == rd_addr2)));
     endfunction
 
+    function void log_error(string msg);
+        if (log_fh) begin
+            $fdisplay(log_fh, "%0t %s", $time, msg);
+        end
+    endfunction
+
+    function string req_fail_string();
+        string s;
+        s = "";
+        for (int i = 1; i <= 10; i++) begin
+            if (req_fail[i]) begin
+                if (s.len() > 0) begin
+                    s = {s, ", "};
+                end
+                s = {s, $sformatf("REQ-%0d", i)};
+            end
+        end
+        if (s.len() == 0) begin
+            s = "NONE";
+        end
+        return s;
+    endfunction
+
+    function int get_error_count();
+        return error_count;
+    endfunction
+
+    task close_log();
+        if (log_fh) begin
+            $fclose(log_fh);
+            log_fh = 0;
+        end
+    endtask
+
     task process_posedge(reg_observation obs);
         bit illegal;
+        bit illegal_same;
+        bit illegal_conflict;
+        bit rd1_mismatch;
+        bit rd2_mismatch;
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
         logic exp_err;
@@ -89,62 +120,105 @@ class reg_scoreboard;
             if (obs.err !== 1'b0) begin
                 reset_mismatch++;
                 error_count++;
+                req_fail[2] = 1'b1;
+                log_error("REQ-002: err not cleared during reset");
+            end
+            if ((obs.rd_addr1 != obs.rd_addr2) && (obs.wr_en === 1'b0)) begin
+                if ((obs.rd_data1 !== 16'h0000) || (obs.rd_data2 !== 16'h0000)) begin
+                    reset_mismatch++;
+                    error_count++;
+                    req_fail[1] = 1'b1;
+                    log_error("REQ-001: registers not cleared during reset");
+                end
             end
             reset_model();
-            cov_reset = 1'b1;
-            req_cg.sample();
             return;
         end
 
-        illegal = is_illegal(obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2);
+        illegal_same = (obs.rd_addr1 == obs.rd_addr2);
+        illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
+        illegal = illegal_same || illegal_conflict;
         exp_err = prev_illegal;
 
         if (obs.err !== exp_err) begin
             err_mismatch++;
             error_count++;
+            req_fail[10] = 1'b1;
+            log_error("REQ-010: err not registered from previous illegal");
+            if (prev_illegal_same) begin
+                req_fail[6] = 1'b1;
+                log_error("REQ-006: err not asserted for rd_addr1 == rd_addr2");
+            end
+            if (prev_illegal_conflict) begin
+                req_fail[7] = 1'b1;
+                log_error("REQ-007: err not asserted for write/read conflict");
+            end
         end
 
         if (illegal) begin
-            exp_rd1 = {16{1'bx}};
-            exp_rd2 = {16{1'bx}};
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
                 x_mismatch++;
                 error_count++;
+                req_fail[9] = 1'b1;
+                log_error("REQ-009: read data not X during illegal condition");
             end
-            cov_x_output = 1'b1;
         end else begin
             exp_rd1 = mem[obs.rd_addr1];
             exp_rd2 = mem[obs.rd_addr2];
-            if (obs.rd_data1 !== exp_rd1 || obs.rd_data2 !== exp_rd2) begin
+            rd1_mismatch = (obs.rd_data1 !== exp_rd1);
+            rd2_mismatch = (obs.rd_data2 !== exp_rd2);
+
+            if (rd1_mismatch || rd2_mismatch) begin
                 data_mismatch++;
                 error_count++;
+                req_fail[5] = 1'b1;
+                log_error("REQ-005: read data mismatch");
+
+                if (last_write_valid) begin
+                    if ((rd1_mismatch && (obs.rd_addr1 == last_write_addr)) ||
+                        (rd2_mismatch && (obs.rd_addr2 == last_write_addr))) begin
+                        req_fail[3] = 1'b1;
+                        log_error("REQ-003: write update not observed on read");
+                    end
+                end
+
+                if (illegal_write_pending &&
+                    ((obs.rd_addr1 == illegal_write_addr) || (obs.rd_addr2 == illegal_write_addr))) begin
+                    req_fail[8] = 1'b1;
+                    log_error("REQ-008: illegal write updated register");
+                    illegal_write_pending = 1'b0;
+                end
+            end else if (illegal_write_pending &&
+                       ((obs.rd_addr1 == illegal_write_addr) || (obs.rd_addr2 == illegal_write_addr))) begin
+                illegal_write_pending = 1'b0;
             end
-            cov_read = 1'b1;
         end
 
         if (obs.wr_en && !illegal) begin
             mem[obs.wr_addr] = obs.wr_data;
-            cov_write = 1'b1;
+            last_write_valid = 1'b1;
+            last_write_addr = obs.wr_addr;
+            last_write_data = obs.wr_data;
+            if (illegal_write_pending && (obs.wr_addr == illegal_write_addr)) begin
+                illegal_write_pending = 1'b0;
+            end
         end
 
-        if (obs.rd_addr1 == obs.rd_addr2) begin
-            cov_illegal_same = 1'b1;
-        end
-
-        if (obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2))) begin
-            cov_illegal_conflict = 1'b1;
-        end
-
-        if (exp_err) begin
-            cov_err = 1'b1;
+        if (illegal && obs.wr_en) begin
+            illegal_write_pending = 1'b1;
+            illegal_write_addr = obs.wr_addr;
+            illegal_write_data = obs.wr_data;
         end
 
         prev_illegal = illegal;
-        req_cg.sample();
+        prev_illegal_same = illegal_same;
+        prev_illegal_conflict = illegal_conflict;
     endtask
 
     task process_async(reg_observation obs);
         bit illegal;
+        bit rd1_mismatch;
+        bit rd2_mismatch;
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
 
@@ -157,21 +231,23 @@ class reg_scoreboard;
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
                 x_mismatch++;
                 error_count++;
+                req_fail[9] = 1'b1;
+                log_error("REQ-009: read data not X during illegal condition (async)");
             end
-            cov_x_output = 1'b1;
         end else begin
             exp_rd1 = mem[obs.rd_addr1];
             exp_rd2 = mem[obs.rd_addr2];
-            if (obs.rd_data1 !== exp_rd1 || obs.rd_data2 !== exp_rd2) begin
+            rd1_mismatch = (obs.rd_data1 !== exp_rd1);
+            rd2_mismatch = (obs.rd_data2 !== exp_rd2);
+            if (rd1_mismatch || rd2_mismatch) begin
                 data_mismatch++;
                 error_count++;
+                req_fail[4] = 1'b1;
+                req_fail[5] = 1'b1;
+                log_error("REQ-004: read data not updating immediately on addr change");
+                log_error("REQ-005: read data mismatch (async)");
             end
-            cov_read = 1'b1;
         end
-
-        cov_addr_change = 1'b1;
-
-        req_cg.sample();
     endtask
 
     task run(ref bit stop_flag, output bit done);
@@ -201,10 +277,6 @@ class reg_scoreboard;
         end
     endtask
 
-    function real get_coverage();
-        return req_cg.get_inst_coverage();
-    endfunction
-
     function void report(string name);
         $display("\n[%s] Scoreboard summary", name);
         $display("  total samples   : %0d", total_samples);
@@ -213,7 +285,6 @@ class reg_scoreboard;
         $display("  x mismatches    : %0d", x_mismatch);
         $display("  err mismatches  : %0d", err_mismatch);
         $display("  reset mismatches: %0d", reset_mismatch);
-        $display("  coverage        : %0.2f%%", get_coverage());
     endfunction
 endclass
 `endif

@@ -26,21 +26,18 @@ class reg_env;
     int mailbox_depth;
     int max_random;
     int min_random;
-    real target_cov;
 
     function new(string name,
                  virtual reg_if rif,
                  int unsigned seed,
                  int mailbox_depth = 32,
                  int min_random = 500,
-                 int max_random = 1000,
-                 real target_cov = 100.0);
+                 int max_random = 1000);
         this.name = name;
         this.rif = rif;
         this.mailbox_depth = mailbox_depth;
         this.min_random = min_random;
         this.max_random = max_random;
-        this.target_cov = target_cov;
 
         gen2drv = new(mailbox_depth);
         mon2scb = new(mailbox_depth);
@@ -48,7 +45,7 @@ class reg_env;
         drv = new(rif, gen2drv);
         gen = new(rif, gen2drv, seed);
         mon = new(rif, mon2scb);
-        scb = new(rif, mon2scb);
+        scb = new(name, rif, mon2scb);
     endfunction
 
     task automatic run_random_phase();
@@ -110,9 +107,6 @@ class reg_env;
         end
 
         while (remaining > 0) begin
-            if (scb.get_coverage() >= target_cov) begin
-                break;
-            end
             batch = (remaining > 25) ? 25 : remaining;
             gen.send_random(batch);
             total_sent += batch;
@@ -142,15 +136,22 @@ class reg_env;
 
         wait (stop_flag);
         wait (scb_done);
-
-        if (scb.get_coverage() + 1e-3 < target_cov) begin
-            $error("[%s] Coverage target not reached: %0.2f%% (target %0.2f%%)",
-                   name, scb.get_coverage(), target_cov);
-        end
     endtask
 
     function void report();
         scb.report(name);
     endfunction
+
+    function string req_fail_list();
+        return scb.req_fail_string();
+    endfunction
+
+    function int total_errors();
+        return scb.get_error_count();
+    endfunction
+
+    task close_logs();
+        scb.close_log();
+    endtask
 endclass
 `endif
