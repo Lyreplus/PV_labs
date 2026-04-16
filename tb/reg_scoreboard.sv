@@ -13,6 +13,7 @@ class reg_scoreboard;
     logic [15:0] mem [0:31];
     logic [15:0] mem_prev [0:31];
     time last_posedge_ts;
+    int unsigned last_posedge_cycle;
     bit prev_illegal;
     bit prev_illegal_same;
     bit prev_illegal_conflict;
@@ -71,6 +72,7 @@ class reg_scoreboard;
         illegal_write_pending = 1'b0;
         reset_released = 1'b0;
         last_posedge_ts = 0;
+        last_posedge_cycle = 0;
     endfunction
 
     function bit is_all_x(logic [15:0] data);
@@ -173,6 +175,7 @@ class reg_scoreboard;
             mem_prev[i] = mem[i];
         end
         last_posedge_ts = obs.ts;
+        last_posedge_cycle = obs.cycle_id;
 
         illegal_same = (obs.rd_addr1 == obs.rd_addr2);
         illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
@@ -289,7 +292,7 @@ class reg_scoreboard;
             if (obs.wr_en === 1'b1) begin
                 return;
             end
-            use_prev = (obs.ts < last_posedge_ts);
+            use_prev = (obs.cycle_id < last_posedge_cycle);
             if (use_prev) begin
                 exp_rd1 = mem_prev[obs.rd_addr1];
                 exp_rd2 = mem_prev[obs.rd_addr2];

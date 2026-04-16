@@ -9,18 +9,21 @@ class register_monitor;
 	mailbox #(reg_observation) mon2scb;
 	bit done;
 	bit addr_pending;
+	int unsigned cycle_id;
 
 	function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
 		this.rif = rif;
 		this.mon2scb = mon2scb;
 		this.done = 1'b0;
 		this.addr_pending = 1'b0;
+		this.cycle_id = 0;
 	endfunction
 
 	task automatic send_sample(sample_kind_t kind);
 		reg_observation obs = new();
 		obs.kind = kind;
 		obs.ts = $time;
+		obs.cycle_id = cycle_id;
 		if (kind == SAMPLE_POSEDGE) begin
 			obs.rst_n = rif.cb_mon.rst_n;
 			obs.wr_en = rif.cb_mon.wr_en;
@@ -52,6 +55,7 @@ class register_monitor;
 				int flush = 0;
 				forever begin
 					@(posedge rif.clk);
+					cycle_id++;
 					send_sample(SAMPLE_POSEDGE);
 					if (stop_flag) begin
 						flush++;

@@ -74,6 +74,7 @@ endclass
 class reg_observation;
 	sample_kind_t kind;
 	time ts;
+	int unsigned cycle_id;
 	logic rst_n;
 	logic wr_en;
 	logic [4:0] wr_addr;
