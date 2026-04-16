@@ -11,6 +11,8 @@ class reg_scoreboard;
     integer log_fh;
 
     logic [15:0] mem [0:31];
+    logic [15:0] mem_prev [0:31];
+    time last_posedge_ts;
     bit prev_illegal;
     bit prev_illegal_same;
     bit prev_illegal_conflict;
@@ -60,6 +62,7 @@ class reg_scoreboard;
     function void reset_model();
         for (int i = 0; i < 32; i++) begin
             mem[i] = 16'h0000;
+            mem_prev[i] = 16'h0000;
         end
         prev_illegal = 1'b0;
         prev_illegal_same = 1'b0;
@@ -67,6 +70,7 @@ class reg_scoreboard;
         last_write_valid = 1'b0;
         illegal_write_pending = 1'b0;
         reset_released = 1'b0;
+        last_posedge_ts = 0;
     endfunction
 
     function bit is_all_x(logic [15:0] data);
@@ -165,6 +169,11 @@ class reg_scoreboard;
 
         reset_released = 1'b1;
 
+        for (int i = 0; i < 32; i++) begin
+            mem_prev[i] = mem[i];
+        end
+        last_posedge_ts = obs.ts;
+
         illegal_same = (obs.rd_addr1 == obs.rd_addr2);
         illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
         illegal = illegal_same || illegal_conflict;
@@ -242,6 +251,7 @@ class reg_scoreboard;
         bit rd1_mismatch;
         bit rd2_mismatch;
         bit req_hit[1:10];
+        bit use_prev;
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
 
@@ -267,8 +277,14 @@ class reg_scoreboard;
             if (obs.wr_en === 1'b1) begin
                 return;
             end
-            exp_rd1 = mem[obs.rd_addr1];
-            exp_rd2 = mem[obs.rd_addr2];
+            use_prev = (obs.ts < last_posedge_ts);
+            if (use_prev) begin
+                exp_rd1 = mem_prev[obs.rd_addr1];
+                exp_rd2 = mem_prev[obs.rd_addr2];
+            end else begin
+                exp_rd1 = mem[obs.rd_addr1];
+                exp_rd2 = mem[obs.rd_addr2];
+            end
             rd1_mismatch = (obs.rd_data1 !== exp_rd1);
             rd2_mismatch = (obs.rd_data2 !== exp_rd2);
             if (rd1_mismatch || rd2_mismatch) begin
