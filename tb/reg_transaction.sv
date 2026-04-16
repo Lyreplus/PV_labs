@@ -24,9 +24,26 @@ class reg_transaction;
 	}
 
 //weighted randomization to increase the likelihood of generating write transactions, illegal_en flag is also randomized 
-	constraint wr_en_c { wr_en dist {1 := 3, 0 := 2}; }
+	constraint wr_en_c { wr_en dist {1 := 1, 0 := 1}; }
 
 	constraint illegal_dist { illegal_en dist {1 := 1, 0 := 3}; }
+
+// data corner cases
+	constraint data_corners {
+		wr_data dist {
+			16'h0000 := 1,
+			16'hFFFF := 1,
+			16'hAAAA := 1,
+			16'h5555 := 1,
+			[0:16'hFFFF] :/ 96
+		};
+	}
+
+// address collision bias 
+	constraint addr_collisions {
+		rd_addr1 dist { rd_addr2 := 2, [0:31] :/ 8 };
+		wr_addr dist { rd_addr1 := 1, rd_addr2 := 1, [0:31] :/ 8 };
+	}
 
 // illegal transaction:
 // - rd_addr1 and rd_addr2 the same
