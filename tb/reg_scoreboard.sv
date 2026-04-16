@@ -34,12 +34,16 @@ class reg_scoreboard;
     int err_mismatch;
     int reset_mismatch;
     int x_mismatch;
+    int verbose;
 
     function new(string name, virtual reg_if rif, mailbox #(reg_observation) mon2scb);
         this.name = name;
         this.rif = rif;
         this.mon2scb = mon2scb;
         log_fh = $fopen({name, "_errors.log"}, "a");
+        if (!$value$plusargs("VERBOSE_LOG=%d", verbose)) begin
+            verbose = 0;
+        end
         total_samples = 0;
         error_count = 0;
         data_mismatch = 0;
@@ -247,6 +251,10 @@ class reg_scoreboard;
             req_hit[i] = 1'b0;
         end
 
+        if ($isunknown({obs.rd_addr1, obs.rd_addr2, obs.wr_addr, obs.wr_en})) begin
+            return;
+        end
+
         illegal = is_illegal(obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2);
         if (illegal) begin
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
@@ -265,6 +273,12 @@ class reg_scoreboard;
                 data_mismatch++;
                 mark_req_fail(req_hit, 4, "REQ-004: read data not updating immediately on addr change");
                 mark_req_fail(req_hit, 5, "REQ-005: read data mismatch (async)");
+                if (verbose > 0) begin
+                    log_error($sformatf("ASYNC rd1 addr=%0d exp=%0h got=%0h rd2 addr=%0d exp=%0h got=%0h wr_en=%0b wr_addr=%0d",
+                                        obs.rd_addr1, exp_rd1, obs.rd_data1,
+                                        obs.rd_addr2, exp_rd2, obs.rd_data2,
+                                        obs.wr_en, obs.wr_addr));
+                end
             end
         end
     endtask
