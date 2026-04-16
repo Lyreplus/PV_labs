@@ -20,6 +20,9 @@
 
 module tb_regfile;
     logic clk;
+    int cycle_count;
+    time start_time;
+    time end_time;
 
     reg_if rif0(clk);
     reg_if rif1(clk);
@@ -90,8 +93,14 @@ module tb_regfile;
 
     always #5 clk = ~clk;
 
+    always @(posedge clk) begin
+        cycle_count++;
+    end
+
     initial begin
         clk = 1'b0;
+        cycle_count = 0;
+        start_time = $time;
 
         env0 = new("regfile_0", rif0, 32'h10);
         env1 = new("regfile_1", rif1, 32'h20);
@@ -104,6 +113,9 @@ module tb_regfile;
             env2.run();
             env3.run();
         join
+
+        end_time = $time;
+        $display("\nSimulation time: %0t ns (%0d cycles)", end_time - start_time, cycle_count);
 
         env0.report();
         env1.report();

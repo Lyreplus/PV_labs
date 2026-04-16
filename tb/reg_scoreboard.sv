@@ -25,6 +25,7 @@ class reg_scoreboard;
     bit cov_illegal_conflict;
     bit cov_err;
     bit cov_x_output;
+    bit cov_addr_change;
 
     covergroup req_cg;
         option.per_instance = 1;
@@ -35,6 +36,7 @@ class reg_scoreboard;
         ill_conf_cp : coverpoint cov_illegal_conflict { bins hit = {1}; }
         err_cp : coverpoint cov_err { bins hit = {1}; }
         x_cp : coverpoint cov_x_output { bins hit = {1}; }
+        addr_change_cp : coverpoint cov_addr_change { bins hit = {1}; }
     endgroup
 
     function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
@@ -54,6 +56,7 @@ class reg_scoreboard;
         cov_illegal_conflict = 1'b0;
         cov_err = 1'b0;
         cov_x_output = 1'b0;
+        cov_addr_change = 1'b0;
         reset_model();
     endfunction
 
@@ -165,6 +168,8 @@ class reg_scoreboard;
             end
             cov_read = 1'b1;
         end
+
+        cov_addr_change = 1'b1;
 
         req_cg.sample();
     endtask

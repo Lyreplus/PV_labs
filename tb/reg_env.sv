@@ -52,23 +52,72 @@ class reg_env;
     endfunction
 
     task automatic run_random_phase();
-        int remaining = max_random;
-        int sent = 0;
+        int per_req;
+        int sent;
+        int total_sent;
+        int remaining;
         int batch;
+        int est_total;
 
-        gen.start_random();
+        total_sent = 0;
+        per_req = (min_random > 0) ? (min_random / 6) : 1;
+        if (per_req < 1) begin
+            per_req = 1;
+        end
+
+        est_total = 10 * per_req + 8;
+        if (est_total > max_random) begin
+            per_req = (max_random > 8) ? ((max_random - 8) / 10) : 1;
+            if (per_req < 1) begin
+                per_req = 1;
+            end
+        end
+
+        gen.rand_req003_write_update(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        gen.rand_req004_read_immediate(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        gen.rand_req005_read_contents(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        gen.rand_req008_no_write_on_illegal(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        gen.rand_req009_x_on_illegal(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        gen.rand_req010_err_registered(per_req, sent);
+        total_sent += sent;
+        repeat (sent + 2) @(posedge rif.clk);
+
+        if (total_sent < min_random) begin
+            int extra = min_random - total_sent;
+            gen.send_random(extra);
+            total_sent += extra;
+            repeat (extra + 2) @(posedge rif.clk);
+        end
+
+        remaining = max_random - total_sent;
+        if (remaining < 0) begin
+            remaining = 0;
+        end
 
         while (remaining > 0) begin
-            batch = (remaining > 25) ? 25 : remaining;
-            gen.send_random(batch);
-            sent += batch;
-            remaining -= batch;
-
-            repeat (batch + 2) @(posedge rif.clk);
-
-            if (sent >= min_random && scb.get_coverage() >= target_cov) begin
+            if (scb.get_coverage() >= target_cov) begin
                 break;
             end
+            batch = (remaining > 25) ? 25 : remaining;
+            gen.send_random(batch);
+            total_sent += batch;
+            remaining -= batch;
+            repeat (batch + 2) @(posedge rif.clk);
         end
     endtask
 
@@ -93,6 +142,11 @@ class reg_env;
 
         wait (stop_flag);
         wait (scb_done);
+
+        if (scb.get_coverage() + 1e-3 < target_cov) begin
+            $error("[%s] Coverage target not reached: %0.2f%% (target %0.2f%%)",
+                   name, scb.get_coverage(), target_cov);
+        end
     endtask
 
     function void report();
