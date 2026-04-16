@@ -196,6 +196,12 @@ class reg_scoreboard;
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
                 x_mismatch++;
                 mark_req_fail(req_hit, 9, "REQ-009: read data not X during illegal condition");
+                if (verbose > 0) begin
+                    log_error($sformatf(
+                        "POSEDGE illegal rst_n=%0b wr_en=%0b wr_addr=%0d wr_data=%0h rd_addr1=%0d rd_addr2=%0d rd_data1=%0h rd_data2=%0h err=%0b",
+                        obs.rst_n, obs.wr_en, obs.wr_addr, obs.wr_data, obs.rd_addr1, obs.rd_addr2,
+                        obs.rd_data1, obs.rd_data2, obs.err));
+                end
             end
         end else begin
             exp_rd1 = mem[obs.rd_addr1];
@@ -206,6 +212,12 @@ class reg_scoreboard;
             if (rd1_mismatch || rd2_mismatch) begin
                 data_mismatch++;
                 mark_req_fail(req_hit, 5, "REQ-005: read data mismatch");
+                if (verbose > 0) begin
+                    log_error($sformatf(
+                        "POSEDGE rst_n=%0b wr_en=%0b wr_addr=%0d wr_data=%0h rd_addr1=%0d rd_addr2=%0d rd_data1=%0h rd_data2=%0h err=%0b | exp_rd1=%0h exp_rd2=%0h",
+                        obs.rst_n, obs.wr_en, obs.wr_addr, obs.wr_data, obs.rd_addr1, obs.rd_addr2,
+                        obs.rd_data1, obs.rd_data2, obs.err, exp_rd1, exp_rd2));
+                end
 
                 if (last_write_valid) begin
                     if ((rd1_mismatch && (obs.rd_addr1 == last_write_addr)) ||
@@ -292,10 +304,10 @@ class reg_scoreboard;
                 mark_req_fail(req_hit, 4, "REQ-004: read data not updating immediately on addr change");
                 mark_req_fail(req_hit, 5, "REQ-005: read data mismatch (async)");
                 if (verbose > 0) begin
-                    log_error($sformatf("ASYNC rd1 addr=%0d exp=%0h got=%0h rd2 addr=%0d exp=%0h got=%0h wr_en=%0b wr_addr=%0d",
-                                        obs.rd_addr1, exp_rd1, obs.rd_data1,
-                                        obs.rd_addr2, exp_rd2, obs.rd_data2,
-                                        obs.wr_en, obs.wr_addr));
+                    log_error($sformatf(
+                        "ASYNC rst_n=%0b wr_en=%0b wr_addr=%0d wr_data=%0h rd_addr1=%0d rd_addr2=%0d rd_data1=%0h rd_data2=%0h err=%0b | exp_rd1=%0h exp_rd2=%0h",
+                        obs.rst_n, obs.wr_en, obs.wr_addr, obs.wr_data, obs.rd_addr1, obs.rd_addr2,
+                        obs.rd_data1, obs.rd_data2, obs.err, exp_rd1, exp_rd2));
                 end
             end
         end
