@@ -141,279 +141,172 @@ class register_generator;
         t_req007_write_read_conflict_illegal();
     endtask
 
-    task automatic rand_req003_write_update(int count, output int sent);
-        reg_transaction wr_tr;
-        reg_transaction rd_tr;
-
-        sent = 0;
-        start_random();
-
-        repeat (count) begin
-            wr_tr = new();
-            if (!wr_tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                wr_tr.illegal_en = 1'b0;
-                wr_tr.wr_en = 1'b1;
-                wr_tr.wr_addr = 5'd0;
-                wr_tr.wr_data = 16'h1234;
-                wr_tr.rd_addr1 = 5'd1;
-                wr_tr.rd_addr2 = 5'd2;
-            end
-            send(wr_tr);
-            sent++;
-
-            rd_tr = new();
-            if (!rd_tr.randomize() with {
-                illegal_en == 0;
-                wr_en == 0;
-                rd_addr1 == wr_tr.wr_addr;
-                rd_addr2 != rd_addr1;
-            }) begin
-                rd_tr.illegal_en = 1'b0;
-                rd_tr.wr_en = 1'b0;
-                rd_tr.wr_addr = 5'd0;
-                rd_tr.wr_data = 16'h0000;
-                rd_tr.rd_addr1 = wr_tr.wr_addr;
-                rd_tr.rd_addr2 = wr_tr.wr_addr + 5'd1;
-            end
-            rd_tr.wr_addr = 5'd0;
-            rd_tr.wr_data = 16'h0000;
-            send(rd_tr);
-            sent++;
-        end
-    endtask
-
-    task automatic rand_req004_read_immediate(int count, output int sent);
+    task automatic t_rand_001(int count, output int sent);
         reg_transaction tr;
-        bit [4:0] last_addr1;
-        bit [4:0] last_addr2;
-        int prefill = 4;
+        reg_transaction tr2;
+        reg_transaction tr3;
+        int remaining;
+        int sel;
 
         sent = 0;
         start_random();
 
-        repeat (prefill) begin
-            tr = new();
-            if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                tr.illegal_en = 1'b0;
-                tr.wr_en = 1'b1;
-                tr.wr_addr = 5'd4;
-                tr.wr_data = 16'h0A0A;
-                tr.rd_addr1 = 5'd0;
-                tr.rd_addr2 = 5'd1;
+        while (sent < count) begin
+            remaining = count - sent;
+            if (remaining == 1) begin
+                void'(std::randomize(sel) with { sel inside {[0:1]}; });
+            end else if (remaining == 2) begin
+                void'(std::randomize(sel) with { sel inside {[0:3]}; });
+            end else begin
+                void'(std::randomize(sel) with { sel inside {[0:4]}; });
             end
-            send(tr);
-            sent++;
-        end
 
-        last_addr1 = 5'h1F;
-        last_addr2 = 5'h00;
-        repeat (count) begin
-            tr = new();
-            if (!tr.randomize() with {
-                illegal_en == 0;
-                wr_en == 0;
-                rd_addr1 != rd_addr2;
-                (rd_addr1 != last_addr1) || (rd_addr2 != last_addr2);
-            }) begin
-                tr.illegal_en = 1'b0;
-                tr.wr_en = 1'b0;
-                tr.wr_addr = 5'd0;
-                tr.wr_data = 16'h0000;
-                tr.rd_addr1 = last_addr1 + 5'd1;
-                tr.rd_addr2 = last_addr2 + 5'd2;
-            end
-            tr.wr_addr = 5'd0;
-            tr.wr_data = 16'h0000;
-            send(tr);
-            sent++;
-            last_addr1 = tr.rd_addr1;
-            last_addr2 = tr.rd_addr2;
-        end
-    endtask
+            case (sel)
+                0: begin
+                    tr = new();
+                    if (!tr.randomize() with { illegal_en == 0; }) begin
+                        tr.illegal_en = 1'b0;
+                        tr.wr_en = 1'b0;
+                        tr.wr_addr = 5'd0;
+                        tr.wr_data = 16'h0000;
+                        tr.rd_addr1 = 5'd0;
+                        tr.rd_addr2 = 5'd1;
+                    end
+                    send(tr);
+                    sent++;
+                end
+                1: begin
+                    tr = new();
+                    if (!tr.randomize() with { illegal_en == 1; wr_en == 0; rd_addr1 == rd_addr2; }) begin
+                        tr.illegal_en = 1'b1;
+                        tr.wr_en = 1'b0;
+                        tr.wr_addr = 5'd0;
+                        tr.wr_data = 16'h0000;
+                        tr.rd_addr1 = 5'd3;
+                        tr.rd_addr2 = 5'd3;
+                    end
+                    tr.wr_addr = 5'd0;
+                    tr.wr_data = 16'h0000;
+                    send(tr);
+                    sent++;
+                end
+                2: begin
+                    tr = new();
+                    if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
+                        tr.illegal_en = 1'b0;
+                        tr.wr_en = 1'b1;
+                        tr.wr_addr = 5'd7;
+                        tr.wr_data = 16'h1234;
+                        tr.rd_addr1 = 5'd0;
+                        tr.rd_addr2 = 5'd1;
+                    end
+                    send(tr);
+                    sent++;
 
-    task automatic rand_req005_read_contents(int count, output int sent);
-        reg_transaction tr;
-        int prefill = 4;
+                    tr2 = new();
+                    if (!tr2.randomize() with {
+                        illegal_en == 0;
+                        wr_en == 0;
+                        rd_addr1 == tr.wr_addr;
+                        rd_addr2 != rd_addr1;
+                    }) begin
+                        tr2.illegal_en = 1'b0;
+                        tr2.wr_en = 1'b0;
+                        tr2.wr_addr = 5'd0;
+                        tr2.wr_data = 16'h0000;
+                        tr2.rd_addr1 = tr.wr_addr;
+                        tr2.rd_addr2 = tr.wr_addr + 5'd1;
+                    end
+                    tr2.wr_addr = 5'd0;
+                    tr2.wr_data = 16'h0000;
+                    send(tr2);
+                    sent++;
+                end
+                3: begin
+                    tr = new();
+                    if (!tr.randomize() with { illegal_en == 0; wr_en == 0; rd_addr1 != rd_addr2; }) begin
+                        tr.illegal_en = 1'b0;
+                        tr.wr_en = 1'b0;
+                        tr.wr_addr = 5'd0;
+                        tr.wr_data = 16'h0000;
+                        tr.rd_addr1 = 5'd4;
+                        tr.rd_addr2 = 5'd5;
+                    end
+                    tr.wr_addr = 5'd0;
+                    tr.wr_data = 16'h0000;
+                    send(tr);
+                    sent++;
 
-        sent = 0;
-        start_random();
+                    tr2 = new();
+                    if (!tr2.randomize() with {
+                        illegal_en == 0;
+                        wr_en == 0;
+                        rd_addr1 != rd_addr2;
+                        (rd_addr1 != tr.rd_addr1) || (rd_addr2 != tr.rd_addr2);
+                    }) begin
+                        tr2.illegal_en = 1'b0;
+                        tr2.wr_en = 1'b0;
+                        tr2.wr_addr = 5'd0;
+                        tr2.wr_data = 16'h0000;
+                        tr2.rd_addr1 = tr.rd_addr1 + 5'd1;
+                        tr2.rd_addr2 = tr.rd_addr2 + 5'd1;
+                    end
+                    tr2.wr_addr = 5'd0;
+                    tr2.wr_data = 16'h0000;
+                    send(tr2);
+                    sent++;
+                end
+                default: begin
+                    tr = new();
+                    if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
+                        tr.illegal_en = 1'b0;
+                        tr.wr_en = 1'b1;
+                        tr.wr_addr = 5'd9;
+                        tr.wr_data = 16'h1111;
+                        tr.rd_addr1 = 5'd0;
+                        tr.rd_addr2 = 5'd1;
+                    end
+                    send(tr);
+                    sent++;
 
-        repeat (prefill) begin
-            tr = new();
-            if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                tr.illegal_en = 1'b0;
-                tr.wr_en = 1'b1;
-                tr.wr_addr = 5'd6;
-                tr.wr_data = 16'h5A5A;
-                tr.rd_addr1 = 5'd0;
-                tr.rd_addr2 = 5'd1;
-            end
-            send(tr);
-            sent++;
-        end
+                    tr2 = new();
+                    if (!tr2.randomize() with {
+                        illegal_en == 1;
+                        wr_en == 1;
+                        wr_addr == tr.wr_addr;
+                        rd_addr1 != rd_addr2;
+                        (rd_addr1 == wr_addr) || (rd_addr2 == wr_addr);
+                    }) begin
+                        tr2.illegal_en = 1'b1;
+                        tr2.wr_en = 1'b1;
+                        tr2.wr_addr = tr.wr_addr;
+                        tr2.wr_data = 16'hAAAA;
+                        tr2.rd_addr1 = tr.wr_addr;
+                        tr2.rd_addr2 = tr.wr_addr + 5'd1;
+                    end
+                    send(tr2);
+                    sent++;
 
-        repeat (count) begin
-            tr = new();
-            if (!tr.randomize() with { illegal_en == 0; wr_en == 0; rd_addr1 != rd_addr2; }) begin
-                tr.illegal_en = 1'b0;
-                tr.wr_en = 1'b0;
-                tr.wr_addr = 5'd0;
-                tr.wr_data = 16'h0000;
-                tr.rd_addr1 = 5'd2;
-                tr.rd_addr2 = 5'd3;
-            end
-            tr.wr_addr = 5'd0;
-            tr.wr_data = 16'h0000;
-            send(tr);
-            sent++;
-        end
-    endtask
-
-    task automatic rand_req008_no_write_on_illegal(int count, output int sent);
-        reg_transaction wr_tr;
-        reg_transaction ill_tr;
-        reg_transaction rd_tr;
-
-        sent = 0;
-        start_random();
-
-        repeat (count) begin
-            wr_tr = new();
-            if (!wr_tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                wr_tr.illegal_en = 1'b0;
-                wr_tr.wr_en = 1'b1;
-                wr_tr.wr_addr = 5'd9;
-                wr_tr.wr_data = 16'h1111;
-                wr_tr.rd_addr1 = 5'd0;
-                wr_tr.rd_addr2 = 5'd1;
-            end
-            send(wr_tr);
-            sent++;
-
-            ill_tr = new();
-            if (!ill_tr.randomize() with {
-                illegal_en == 1;
-                wr_en == 1;
-                wr_addr == wr_tr.wr_addr;
-                rd_addr1 != rd_addr2;
-                (rd_addr1 == wr_addr) || (rd_addr2 == wr_addr);
-            }) begin
-                ill_tr.illegal_en = 1'b1;
-                ill_tr.wr_en = 1'b1;
-                ill_tr.wr_addr = wr_tr.wr_addr;
-                ill_tr.wr_data = 16'hAAAA;
-                ill_tr.rd_addr1 = wr_tr.wr_addr;
-                ill_tr.rd_addr2 = wr_tr.wr_addr + 5'd1;
-            end
-            send(ill_tr);
-            sent++;
-
-            rd_tr = new();
-            if (!rd_tr.randomize() with {
-                illegal_en == 0;
-                wr_en == 0;
-                rd_addr1 == wr_tr.wr_addr;
-                rd_addr2 != rd_addr1;
-            }) begin
-                rd_tr.illegal_en = 1'b0;
-                rd_tr.wr_en = 1'b0;
-                rd_tr.wr_addr = 5'd0;
-                rd_tr.wr_data = 16'h0000;
-                rd_tr.rd_addr1 = wr_tr.wr_addr;
-                rd_tr.rd_addr2 = wr_tr.wr_addr + 5'd1;
-            end
-            rd_tr.wr_addr = 5'd0;
-            rd_tr.wr_data = 16'h0000;
-            send(rd_tr);
-            sent++;
-        end
-    endtask
-
-    task automatic rand_req009_x_on_illegal(int count, output int sent);
-        reg_transaction tr;
-
-        sent = 0;
-        start_random();
-
-        repeat (count) begin
-            tr = new();
-            if (!tr.randomize() with {
-                illegal_en == 1;
-                wr_en == 0;
-                rd_addr1 == rd_addr2;
-            }) begin
-                tr.illegal_en = 1'b1;
-                tr.wr_en = 1'b0;
-                tr.wr_addr = 5'd0;
-                tr.wr_data = 16'h0000;
-                tr.rd_addr1 = 5'd14;
-                tr.rd_addr2 = 5'd14;
-            end
-            tr.wr_addr = 5'd0;
-            tr.wr_data = 16'h0000;
-            send(tr);
-            sent++;
-        end
-    endtask
-
-    task automatic rand_req010_err_registered(int count, output int sent);
-        reg_transaction ill_tr;
-        reg_transaction ok_tr;
-
-        sent = 0;
-        start_random();
-
-        repeat (count) begin
-            ill_tr = new();
-            if (!ill_tr.randomize() with {
-                illegal_en == 1;
-                wr_en == 0;
-                rd_addr1 == rd_addr2;
-            }) begin
-                ill_tr.illegal_en = 1'b1;
-                ill_tr.wr_en = 1'b0;
-                ill_tr.wr_addr = 5'd0;
-                ill_tr.wr_data = 16'h0000;
-                ill_tr.rd_addr1 = 5'd5;
-                ill_tr.rd_addr2 = 5'd5;
-            end
-            ill_tr.wr_addr = 5'd0;
-            ill_tr.wr_data = 16'h0000;
-            send(ill_tr);
-            sent++;
-
-            ok_tr = new();
-            if (!ok_tr.randomize() with {
-                illegal_en == 0;
-                wr_en == 0;
-                rd_addr1 != rd_addr2;
-            }) begin
-                ok_tr.illegal_en = 1'b0;
-                ok_tr.wr_en = 1'b0;
-                ok_tr.wr_addr = 5'd0;
-                ok_tr.wr_data = 16'h0000;
-                ok_tr.rd_addr1 = 5'd6;
-                ok_tr.rd_addr2 = 5'd7;
-            end
-            ok_tr.wr_addr = 5'd0;
-            ok_tr.wr_data = 16'h0000;
-            send(ok_tr);
-            sent++;
-        end
-    endtask
-
-    task send_random(int count);
-        reg_transaction tr;
-        start_random();
-        repeat (count) begin
-            tr = new();
-            if (!tr.randomize()) begin
-                tr = new();
-                tr.wr_en = 1'b0;
-                tr.rd_addr1 = 5'd0;
-                tr.rd_addr2 = 5'd1;
-            end
-            send(tr);
+                    tr3 = new();
+                    if (!tr3.randomize() with {
+                        illegal_en == 0;
+                        wr_en == 0;
+                        rd_addr1 == tr.wr_addr;
+                        rd_addr2 != rd_addr1;
+                    }) begin
+                        tr3.illegal_en = 1'b0;
+                        tr3.wr_en = 1'b0;
+                        tr3.wr_addr = 5'd0;
+                        tr3.wr_data = 16'h0000;
+                        tr3.rd_addr1 = tr.wr_addr;
+                        tr3.rd_addr2 = tr.wr_addr + 5'd1;
+                    end
+                    tr3.wr_addr = 5'd0;
+                    tr3.wr_data = 16'h0000;
+                    send(tr3);
+                    sent++;
+                end
+            endcase
         end
     endtask
 

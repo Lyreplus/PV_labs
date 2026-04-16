@@ -49,70 +49,19 @@ class reg_env;
     endfunction
 
     task automatic run_random_phase();
-        int per_req;
         int sent;
-        int total_sent;
-        int remaining;
-        int batch;
-        int est_total;
+        int target;
 
-        total_sent = 0;
-        per_req = (min_random > 0) ? (min_random / 6) : 1;
-        if (per_req < 1) begin
-            per_req = 1;
+        target = max_random;
+        if (target < min_random) begin
+            target = min_random;
+        end
+        if (target < 1) begin
+            target = 1;
         end
 
-        est_total = 10 * per_req + 8;
-        if (est_total > max_random) begin
-            per_req = (max_random > 8) ? ((max_random - 8) / 10) : 1;
-            if (per_req < 1) begin
-                per_req = 1;
-            end
-        end
-
-        gen.rand_req003_write_update(per_req, sent);
-        total_sent += sent;
+        gen.t_rand_001(target, sent);
         repeat (sent + 2) @(posedge rif.clk);
-
-        gen.rand_req004_read_immediate(per_req, sent);
-        total_sent += sent;
-        repeat (sent + 2) @(posedge rif.clk);
-
-        gen.rand_req005_read_contents(per_req, sent);
-        total_sent += sent;
-        repeat (sent + 2) @(posedge rif.clk);
-
-        gen.rand_req008_no_write_on_illegal(per_req, sent);
-        total_sent += sent;
-        repeat (sent + 2) @(posedge rif.clk);
-
-        gen.rand_req009_x_on_illegal(per_req, sent);
-        total_sent += sent;
-        repeat (sent + 2) @(posedge rif.clk);
-
-        gen.rand_req010_err_registered(per_req, sent);
-        total_sent += sent;
-        repeat (sent + 2) @(posedge rif.clk);
-
-        if (total_sent < min_random) begin
-            int extra = min_random - total_sent;
-            gen.send_random(extra);
-            total_sent += extra;
-            repeat (extra + 2) @(posedge rif.clk);
-        end
-
-        remaining = max_random - total_sent;
-        if (remaining < 0) begin
-            remaining = 0;
-        end
-
-        while (remaining > 0) begin
-            batch = (remaining > 25) ? 25 : remaining;
-            gen.send_random(batch);
-            total_sent += batch;
-            remaining -= batch;
-            repeat (batch + 2) @(posedge rif.clk);
-        end
     endtask
 
     task run();
