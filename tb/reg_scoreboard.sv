@@ -24,6 +24,7 @@ class reg_scoreboard;
     logic [15:0] illegal_write_data;
 
     bit req_fail[1:10];
+    int req_fail_count[1:10];
 
     int total_samples;
     int error_count;
@@ -45,6 +46,7 @@ class reg_scoreboard;
         x_mismatch = 0;
         for (int i = 1; i <= 10; i++) begin
             req_fail[i] = 1'b0;
+            req_fail_count[i] = 0;
         end
         reset_model();
     endfunction
@@ -69,6 +71,16 @@ class reg_scoreboard;
         return (rd_addr1 == rd_addr2) ||
                (wr_en && ((wr_addr == rd_addr1) || (wr_addr == rd_addr2)));
     endfunction
+
+    task mark_req_fail(ref bit req_hit[1:10], int idx, string msg);
+        if (!req_hit[idx]) begin
+            req_fail_count[idx]++;
+            req_hit[idx] = 1'b1;
+        end
+        req_fail[idx] = 1'b1;
+        error_count++;
+        log_error(msg);
+    endtask
 
     function void log_error(string msg);
         if (log_fh) begin
@@ -97,6 +109,13 @@ class reg_scoreboard;
         return error_count;
     endfunction
 
+    function int get_req_fail_count(int idx);
+        if (idx >= 1 && idx <= 10) begin
+            return req_fail_count[idx];
+        end
+        return 0;
+    endfunction
+
     task close_log();
         if (log_fh) begin
             $fclose(log_fh);
@@ -110,25 +129,27 @@ class reg_scoreboard;
         bit illegal_conflict;
         bit rd1_mismatch;
         bit rd2_mismatch;
+        bit req_hit[1:10];
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
         logic exp_err;
 
         total_samples++;
 
+        for (int i = 1; i <= 10; i++) begin
+            req_hit[i] = 1'b0;
+        end
+
         if (obs.rst_n === 1'b0) begin
             if (obs.err !== 1'b0) begin
                 reset_mismatch++;
-                error_count++;
-                req_fail[2] = 1'b1;
-                log_error("REQ-002: err not cleared during reset");
+                err_mismatch++;
+                mark_req_fail(req_hit, 2, "REQ-002: err not cleared during reset");
             end
             if ((obs.rd_addr1 != obs.rd_addr2) && (obs.wr_en === 1'b0)) begin
                 if ((obs.rd_data1 !== 16'h0000) || (obs.rd_data2 !== 16'h0000)) begin
                     reset_mismatch++;
-                    error_count++;
-                    req_fail[1] = 1'b1;
-                    log_error("REQ-001: registers not cleared during reset");
+                    mark_req_fail(req_hit, 1, "REQ-001: registers not cleared during reset");
                 end
             end
             reset_model();
@@ -142,25 +163,19 @@ class reg_scoreboard;
 
         if (obs.err !== exp_err) begin
             err_mismatch++;
-            error_count++;
-            req_fail[10] = 1'b1;
-            log_error("REQ-010: err not registered from previous illegal");
+            mark_req_fail(req_hit, 10, "REQ-010: err not registered from previous illegal");
             if (prev_illegal_same) begin
-                req_fail[6] = 1'b1;
-                log_error("REQ-006: err not asserted for rd_addr1 == rd_addr2");
+                mark_req_fail(req_hit, 6, "REQ-006: err not asserted for rd_addr1 == rd_addr2");
             end
             if (prev_illegal_conflict) begin
-                req_fail[7] = 1'b1;
-                log_error("REQ-007: err not asserted for write/read conflict");
+                mark_req_fail(req_hit, 7, "REQ-007: err not asserted for write/read conflict");
             end
         end
 
         if (illegal) begin
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
                 x_mismatch++;
-                error_count++;
-                req_fail[9] = 1'b1;
-                log_error("REQ-009: read data not X during illegal condition");
+                mark_req_fail(req_hit, 9, "REQ-009: read data not X during illegal condition");
             end
         end else begin
             exp_rd1 = mem[obs.rd_addr1];
@@ -170,22 +185,18 @@ class reg_scoreboard;
 
             if (rd1_mismatch || rd2_mismatch) begin
                 data_mismatch++;
-                error_count++;
-                req_fail[5] = 1'b1;
-                log_error("REQ-005: read data mismatch");
+                mark_req_fail(req_hit, 5, "REQ-005: read data mismatch");
 
                 if (last_write_valid) begin
                     if ((rd1_mismatch && (obs.rd_addr1 == last_write_addr)) ||
                         (rd2_mismatch && (obs.rd_addr2 == last_write_addr))) begin
-                        req_fail[3] = 1'b1;
-                        log_error("REQ-003: write update not observed on read");
+                        mark_req_fail(req_hit, 3, "REQ-003: write update not observed on read");
                     end
                 end
 
                 if (illegal_write_pending &&
                     ((obs.rd_addr1 == illegal_write_addr) || (obs.rd_addr2 == illegal_write_addr))) begin
-                    req_fail[8] = 1'b1;
-                    log_error("REQ-008: illegal write updated register");
+                    mark_req_fail(req_hit, 8, "REQ-008: illegal write updated register");
                     illegal_write_pending = 1'b0;
                 end
             end else if (illegal_write_pending &&
@@ -219,6 +230,7 @@ class reg_scoreboard;
         bit illegal;
         bit rd1_mismatch;
         bit rd2_mismatch;
+        bit req_hit[1:10];
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
 
@@ -226,13 +238,15 @@ class reg_scoreboard;
             return;
         end
 
+        for (int i = 1; i <= 10; i++) begin
+            req_hit[i] = 1'b0;
+        end
+
         illegal = is_illegal(obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2);
         if (illegal) begin
             if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
                 x_mismatch++;
-                error_count++;
-                req_fail[9] = 1'b1;
-                log_error("REQ-009: read data not X during illegal condition (async)");
+                mark_req_fail(req_hit, 9, "REQ-009: read data not X during illegal condition (async)");
             end
         end else begin
             exp_rd1 = mem[obs.rd_addr1];
@@ -241,11 +255,8 @@ class reg_scoreboard;
             rd2_mismatch = (obs.rd_data2 !== exp_rd2);
             if (rd1_mismatch || rd2_mismatch) begin
                 data_mismatch++;
-                error_count++;
-                req_fail[4] = 1'b1;
-                req_fail[5] = 1'b1;
-                log_error("REQ-004: read data not updating immediately on addr change");
-                log_error("REQ-005: read data mismatch (async)");
+                mark_req_fail(req_hit, 4, "REQ-004: read data not updating immediately on addr change");
+                mark_req_fail(req_hit, 5, "REQ-005: read data mismatch (async)");
             end
         end
     endtask

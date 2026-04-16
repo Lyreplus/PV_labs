@@ -150,6 +150,10 @@ class reg_env;
         return scb.get_error_count();
     endfunction
 
+    function int req_fail_count(int idx);
+        return scb.get_req_fail_count(idx);
+    endfunction
+
     task close_logs();
         scb.close_log();
     endtask

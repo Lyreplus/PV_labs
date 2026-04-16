@@ -19,15 +19,28 @@ class register_monitor;
 		reg_observation obs = new();
 		obs.kind = kind;
 		obs.ts = $time;
-		obs.rst_n = rif.rst_n;
-		obs.wr_en = rif.wr_en;
-		obs.wr_addr = rif.wr_addr;
-		obs.wr_data = rif.wr_data;
-		obs.rd_addr1 = rif.rd_addr1;
-		obs.rd_addr2 = rif.rd_addr2;
-		obs.rd_data1 = rif.rd_data1;
-		obs.rd_data2 = rif.rd_data2;
-		obs.err = rif.err;
+		if (kind == SAMPLE_POSEDGE) begin
+			obs.rst_n = rif.cb_mon.rst_n;
+			obs.wr_en = rif.cb_mon.wr_en;
+			obs.wr_addr = rif.cb_mon.wr_addr;
+			obs.wr_data = rif.cb_mon.wr_data;
+			obs.rd_addr1 = rif.cb_mon.rd_addr1;
+			obs.rd_addr2 = rif.cb_mon.rd_addr2;
+			obs.rd_data1 = rif.cb_mon.rd_data1;
+			obs.rd_data2 = rif.cb_mon.rd_data2;
+			obs.err = rif.cb_mon.err;
+		end else begin
+			#1step;
+			obs.rst_n = rif.rst_n;
+			obs.wr_en = rif.wr_en;
+			obs.wr_addr = rif.wr_addr;
+			obs.wr_data = rif.wr_data;
+			obs.rd_addr1 = rif.rd_addr1;
+			obs.rd_addr2 = rif.rd_addr2;
+			obs.rd_data1 = rif.rd_data1;
+			obs.rd_data2 = rif.rd_data2;
+			obs.err = rif.err;
+		end
 		mon2scb.put(obs);
 	endtask
 

@@ -132,13 +132,30 @@ module tb_regfile;
         env2.report();
         env3.report();
 
-        $display("\nDesign summary (failed tests by requirement)");
-        $display("--------------------------------------");
-        $display("%-12s | %-30s | %s", "Design", "Failed Tests", "Total Errors");
-        $display("%-12s | %-30s | %0d", env0.name, env0.req_fail_list(), env0.total_errors());
-        $display("%-12s | %-30s | %0d", env1.name, env1.req_fail_list(), env1.total_errors());
-        $display("%-12s | %-30s | %0d", env2.name, env2.req_fail_list(), env2.total_errors());
-        $display("%-12s | %-30s | %0d", env3.name, env3.req_fail_list(), env3.total_errors());
+        $display("\nDesign summary (failed transactions per requirement)");
+        $display("------------------------------------------------------------------------------------------------------------");
+        $display("%-12s | %3s %3s %3s %3s %3s %3s %3s %3s %3s %3s | %6s",
+             "Design", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "Total");
+        $display("%-12s | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %6d",
+             env0.name,
+             env0.req_fail_count(1), env0.req_fail_count(2), env0.req_fail_count(3), env0.req_fail_count(4),
+             env0.req_fail_count(5), env0.req_fail_count(6), env0.req_fail_count(7), env0.req_fail_count(8),
+             env0.req_fail_count(9), env0.req_fail_count(10), env0.total_errors());
+        $display("%-12s | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %6d",
+             env1.name,
+             env1.req_fail_count(1), env1.req_fail_count(2), env1.req_fail_count(3), env1.req_fail_count(4),
+             env1.req_fail_count(5), env1.req_fail_count(6), env1.req_fail_count(7), env1.req_fail_count(8),
+             env1.req_fail_count(9), env1.req_fail_count(10), env1.total_errors());
+        $display("%-12s | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %6d",
+             env2.name,
+             env2.req_fail_count(1), env2.req_fail_count(2), env2.req_fail_count(3), env2.req_fail_count(4),
+             env2.req_fail_count(5), env2.req_fail_count(6), env2.req_fail_count(7), env2.req_fail_count(8),
+             env2.req_fail_count(9), env2.req_fail_count(10), env2.total_errors());
+        $display("%-12s | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %6d",
+             env3.name,
+             env3.req_fail_count(1), env3.req_fail_count(2), env3.req_fail_count(3), env3.req_fail_count(4),
+             env3.req_fail_count(5), env3.req_fail_count(6), env3.req_fail_count(7), env3.req_fail_count(8),
+             env3.req_fail_count(9), env3.req_fail_count(10), env3.total_errors());
 
         env0.close_logs();
         env1.close_logs();
