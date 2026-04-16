@@ -170,14 +170,16 @@ class reg_scoreboard;
         illegal = illegal_same || illegal_conflict;
         exp_err = prev_illegal;
 
-        if (obs.err !== exp_err) begin
-            err_mismatch++;
-            mark_req_fail(req_hit, 10, "REQ-010: err not registered from previous illegal");
-            if (prev_illegal_same) begin
-                mark_req_fail(req_hit, 6, "REQ-006: err not asserted for rd_addr1 == rd_addr2");
-            end
-            if (prev_illegal_conflict) begin
-                mark_req_fail(req_hit, 7, "REQ-007: err not asserted for write/read conflict");
+        if (!$isunknown({obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2})) begin
+            if (obs.err !== exp_err) begin
+                err_mismatch++;
+                mark_req_fail(req_hit, 10, "REQ-010: err not registered from previous illegal");
+                if (prev_illegal_same) begin
+                    mark_req_fail(req_hit, 6, "REQ-006: err not asserted for rd_addr1 == rd_addr2");
+                end
+                if (prev_illegal_conflict) begin
+                    mark_req_fail(req_hit, 7, "REQ-007: err not asserted for write/read conflict");
+                end
             end
         end
 

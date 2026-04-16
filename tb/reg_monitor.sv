@@ -8,11 +8,13 @@ class register_monitor;
 	virtual reg_if rif;
 	mailbox #(reg_observation) mon2scb;
 	bit done;
+	bit addr_pending;
 
 	function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
 		this.rif = rif;
 		this.mon2scb = mon2scb;
 		this.done = 1'b0;
+		this.addr_pending = 1'b0;
 	endfunction
 
 	task automatic send_sample(sample_kind_t kind);
@@ -63,7 +65,16 @@ class register_monitor;
 			begin : addr_thread
 				forever begin
 					@(rif.rd_addr1 or rif.rd_addr2);
-					send_sample(SAMPLE_ADDR_CHANGE);
+					if (!addr_pending) begin
+						addr_pending = 1'b1;
+						fork
+							begin
+								#1step;
+								send_sample(SAMPLE_ADDR_CHANGE);
+								addr_pending = 1'b0;
+							end
+						join_none
+					end
 				end
 			end
 		join
