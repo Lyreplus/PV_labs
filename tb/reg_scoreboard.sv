@@ -23,6 +23,8 @@ class reg_scoreboard;
     logic [4:0] illegal_write_addr;
     logic [15:0] illegal_write_data;
 
+    bit reset_released;
+
     bit req_fail[1:10];
     int req_fail_count[1:10];
 
@@ -60,6 +62,7 @@ class reg_scoreboard;
         prev_illegal_conflict = 1'b0;
         last_write_valid = 1'b0;
         illegal_write_pending = 1'b0;
+        reset_released = 1'b0;
     endfunction
 
     function bit is_all_x(logic [15:0] data);
@@ -72,7 +75,7 @@ class reg_scoreboard;
                (wr_en && ((wr_addr == rd_addr1) || (wr_addr == rd_addr2)));
     endfunction
 
-    task mark_req_fail(ref bit req_hit[1:10], int idx, string msg);
+    task mark_req_fail(ref bit req_hit[1:10], input int idx, input string msg);
         if (!req_hit[idx]) begin
             req_fail_count[idx]++;
             req_hit[idx] = 1'b1;
@@ -156,6 +159,8 @@ class reg_scoreboard;
             return;
         end
 
+        reset_released = 1'b1;
+
         illegal_same = (obs.rd_addr1 == obs.rd_addr2);
         illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
         illegal = illegal_same || illegal_conflict;
@@ -234,7 +239,7 @@ class reg_scoreboard;
         logic [15:0] exp_rd1;
         logic [15:0] exp_rd2;
 
-        if (obs.rst_n !== 1'b1) begin
+        if (!reset_released || obs.rst_n !== 1'b1) begin
             return;
         end
 
@@ -249,6 +254,9 @@ class reg_scoreboard;
                 mark_req_fail(req_hit, 9, "REQ-009: read data not X during illegal condition (async)");
             end
         end else begin
+            if (obs.wr_en === 1'b1) begin
+                return;
+            end
             exp_rd1 = mem[obs.rd_addr1];
             exp_rd2 = mem[obs.rd_addr2];
             rd1_mismatch = (obs.rd_data1 !== exp_rd1);

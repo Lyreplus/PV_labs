@@ -3,19 +3,19 @@
 `include "reg_checker.sv"
 
 `ifndef DUT0
-`define DUT0 regfile_0
+`define DUT0 regfile_v0
 `endif
 
 `ifndef DUT1
-`define DUT1 regfile_1
+`define DUT1 regfile_v1
 `endif
 
 `ifndef DUT2
-`define DUT2 regfile_2
+`define DUT2 regfile_v2
 `endif
 
 `ifndef DUT3
-`define DUT3 regfile_3
+`define DUT3 regfile_v3
 `endif
 
 module tb_regfile;
@@ -103,19 +103,19 @@ module tb_regfile;
         cycle_count = 0;
         start_time = $time;
 
-        log_clear_fh = $fopen("regfile_0_errors.log", "w");
+        log_clear_fh = $fopen("regfile_v0_errors.log", "w");
         if (log_clear_fh) $fclose(log_clear_fh);
-        log_clear_fh = $fopen("regfile_1_errors.log", "w");
+        log_clear_fh = $fopen("regfile_v1_errors.log", "w");
         if (log_clear_fh) $fclose(log_clear_fh);
-        log_clear_fh = $fopen("regfile_2_errors.log", "w");
+        log_clear_fh = $fopen("regfile_v2_errors.log", "w");
         if (log_clear_fh) $fclose(log_clear_fh);
-        log_clear_fh = $fopen("regfile_3_errors.log", "w");
+        log_clear_fh = $fopen("regfile_v3_errors.log", "w");
         if (log_clear_fh) $fclose(log_clear_fh);
 
-        env0 = new("regfile_0", rif0, 32'h10);
-        env1 = new("regfile_1", rif1, 32'h20);
-        env2 = new("regfile_2", rif2, 32'h30);
-        env3 = new("regfile_3", rif3, 32'h40);
+        env0 = new("regfile_v0", rif0, 32'h10);
+        env1 = new("regfile_v1", rif1, 32'h20);
+        env2 = new("regfile_v2", rif2, 32'h30);
+        env3 = new("regfile_v3", rif3, 32'h40);
 
         fork
             env0.run();
