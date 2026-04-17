@@ -38,12 +38,12 @@ class register_generator;
 
     function automatic void set_tr(
         ref reg_transaction tr,
-        bit wr_en,
-        logic [4:0] wr_addr,
-        logic [15:0] wr_data,
-        logic [4:0] rd_addr1,
-        logic [4:0] rd_addr2,
-        bit illegal_en
+        input bit wr_en,
+        input logic [4:0] wr_addr,
+        input logic [15:0] wr_data,
+        input logic [4:0] rd_addr1,
+        input logic [4:0] rd_addr2,
+        input bit illegal_en
     );
         tr.wr_en = wr_en;
         tr.wr_addr = wr_addr;
