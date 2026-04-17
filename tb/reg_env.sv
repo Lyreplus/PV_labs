@@ -20,9 +20,6 @@ class reg_env;
     mailbox #(reg_transaction) gen2drv;
     mailbox #(reg_observation) mon2scb;
 
-    bit stop_flag;
-    bit scb_done;
-
     int mailbox_depth;
     int max_random;
     int min_random;
@@ -65,26 +62,21 @@ class reg_env;
     endtask
 
     task run();
-        stop_flag = 1'b0;
-        scb_done = 1'b0;
-
         fork
-            mon.run(stop_flag);
-            scb.run(stop_flag, scb_done);
+            mon.run();
+            scb.run();
         join_none
 
         drv.reset_dut();
 
         fork
-            drv.run(stop_flag);
+            drv.run();
         join_none
 
         gen.run_directed();
         run_random_phase();
         gen.send_end();
-
-        wait (stop_flag);
-        wait (scb_done);
+        repeat (5) @(posedge rif.clk);
     endtask
 
     function void report();

@@ -331,30 +331,17 @@ class reg_scoreboard;
         end
     endtask
 
-    task run(ref bit stop_flag, output bit done);
+    task run();
         reg_observation obs;
-        int idle_cycles = 0;
-        done = 1'b0;
         forever begin
-            if (mon2scb.try_get(obs)) begin
-                idle_cycles = 0;
-                do begin
-                    if (obs.kind == SAMPLE_POSEDGE) begin
-                        process_posedge(obs);
-                    end else begin
-                        process_async(obs);
-                    end
-                end while (mon2scb.try_get(obs));
-            end else begin
-                @(posedge rif.clk);
-                if (stop_flag) begin
-                    idle_cycles++;
-                    if (idle_cycles >= 2) begin
-                        done = 1'b1;
-                        break;
-                    end
+            mon2scb.get(obs);
+            do begin
+                if (obs.kind == SAMPLE_POSEDGE) begin
+                    process_posedge(obs);
+                end else begin
+                    process_async(obs);
                 end
-            end
+            end while (mon2scb.try_get(obs));
         end
     endtask
 

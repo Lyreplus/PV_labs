@@ -7,14 +7,12 @@
 class register_monitor;
 	virtual reg_if rif;
 	mailbox #(reg_observation) mon2scb; // monitor to scoreboard mailbox
-	bit done;
 	bit addr_pending;
 	int unsigned cycle_id;
 
 	function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
 		this.rif = rif;
 		this.mon2scb = mon2scb;
-		this.done = 1'b0;
 		this.addr_pending = 1'b0;
 		this.cycle_id = 0;
 	endfunction
@@ -49,21 +47,13 @@ class register_monitor;
 		mon2scb.put(obs);
 	endtask
 
-	task run(ref bit stop_flag);
+	task run();
 		fork : mon_threads
 			begin : posedge_thread
-				int flush = 0;
 				forever begin
 					@(posedge rif.clk);
 					cycle_id++;
 					send_sample(SAMPLE_POSEDGE);
-					if (stop_flag) begin
-						flush++;
-						if (flush >= 2) begin
-							done = 1'b1;
-							disable mon_threads;
-						end
-					end
 				end
 			end
 			begin : addr_thread

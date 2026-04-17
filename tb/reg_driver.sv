@@ -33,12 +33,11 @@ class register_driver;
         @(posedge rif.clk); // ensure DUT has time to come out of reset before starting transactions
     endtask
 
-    task run(ref bit stop_flag);
+    task run();
         reg_transaction tr;
         forever begin
             gen2drv.get(tr);
             if (tr.is_end) begin
-                stop_flag = 1'b1;
                 rif.cb_drv.wr_en <= 1'b0;
                 done = 1'b1;
                 break;
