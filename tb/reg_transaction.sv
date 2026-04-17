@@ -28,7 +28,7 @@ class reg_transaction;
 
 	constraint illegal_dist { illegal_en dist {1 := 1, 0 := 3}; }
 
-// data corner cases
+// data corner cases, 96 % of the time random
 	constraint data_corners {
 		wr_data dist {
 			16'h0000 := 1,

@@ -13,7 +13,7 @@ interface reg_if(input bit clk);
     logic err;
 
     clocking cb_drv @(negedge clk);
-        default input #1step output #1step;
+        default input #1step output #0;
         output rst_n;
         output wr_en;
         output wr_addr;
@@ -23,7 +23,7 @@ interface reg_if(input bit clk);
     endclocking: cb_drv
 
     clocking cb_mon @(posedge clk);
-        default input #1step output #1step;
+        default input #1step output #0;
         input rst_n;
         input wr_en;
         input wr_addr;

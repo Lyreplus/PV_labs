@@ -24,12 +24,13 @@ class register_driver;
         rif.cb_drv.rd_addr2 <= '0;
     endtask
 
+// reset of the DUT
     task automatic reset_dut();
         init_signals();
         rif.cb_drv.rst_n <= 1'b0;
         @(posedge rif.clk);
         rif.cb_drv.rst_n <= 1'b1;
-        @(posedge rif.clk);
+        @(posedge rif.clk); // ensure DUT has time to come out of reset before starting transactions
     endtask
 
     task run(ref bit stop_flag);
@@ -43,7 +44,7 @@ class register_driver;
                 break;
             end
 
-            @(rif.cb_drv);
+            @(rif.cb_drv); //driver clocking block
             rif.cb_drv.wr_en <= tr.wr_en;
             rif.cb_drv.wr_addr <= tr.wr_addr;
             rif.cb_drv.wr_data <= tr.wr_data;

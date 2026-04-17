@@ -6,7 +6,7 @@
 
 class register_monitor;
 	virtual reg_if rif;
-	mailbox #(reg_observation) mon2scb;
+	mailbox #(reg_observation) mon2scb; // monitor to scoreboard mailbox
 	bit done;
 	bit addr_pending;
 	int unsigned cycle_id;

@@ -5,29 +5,34 @@
 `include "reg_transaction.sv"
 
 class reg_scoreboard;
-    string name;
+    string name; //DUT name
     virtual reg_if rif;
     mailbox #(reg_observation) mon2scb;
-    integer log_fh;
+    integer log_fh; // log file handle
 
+    // Golden model of the register file
     logic [15:0] mem [0:31];
-    logic [15:0] mem_prev [0:31];
+    logic [15:0] mem_prev [0:31]; // previous state register file for async checks
     time last_posedge_ts;
     int unsigned last_posedge_cycle;
-    bit prev_illegal;
-    bit prev_illegal_same;
-    bit prev_illegal_conflict;
 
+    bit prev_illegal;
+    bit prev_illegal_same; //same rd_addr
+    bit prev_illegal_conflict; //rw conflict
+
+    // REQ-003 tracking
     bit last_write_valid;
     logic [4:0] last_write_addr;
     logic [15:0] last_write_data;
 
+    // REQ-008 tracking
     bit illegal_write_pending;
     logic [4:0] illegal_write_addr;
     logic [15:0] illegal_write_data;
 
     bit reset_released;
 
+    // Request failure tracking
     bit req_fail[1:10];
     int req_fail_count[1:10];
 
@@ -75,6 +80,7 @@ class reg_scoreboard;
         last_posedge_cycle = 0;
     endfunction
 
+    //for illegal reads
     function bit is_all_x(logic [15:0] data);
         return (data === {16{1'bx}});
     endfunction
@@ -101,6 +107,9 @@ class reg_scoreboard;
         end
     endfunction
 
+// ************** UTILITIES  **************
+
+    // get a comma-separated string of failed requirements
     function string req_fail_string();
         string s;
         s = "";
@@ -136,6 +145,7 @@ class reg_scoreboard;
         end
     endtask
 
+//  ************** synchronous checks  **************
     task process_posedge(reg_observation obs);
         bit illegal;
         bit illegal_same;
@@ -154,12 +164,12 @@ class reg_scoreboard;
         end
 
         if (obs.rst_n === 1'b0) begin
-            if (obs.err !== 1'b0) begin
+            if (obs.err !== 1'b0) begin //err must be cleared during reset
                 reset_mismatch++;
                 err_mismatch++;
                 mark_req_fail(req_hit, 2, "REQ-002: err not cleared during reset");
             end
-            if ((obs.rd_addr1 != obs.rd_addr2) && (obs.wr_en === 1'b0)) begin
+            if ((obs.rd_addr1 != obs.rd_addr2) && (obs.wr_en === 1'b0)) begin // if addresses are different, read data should be 0 during reset
                 if ((obs.rd_data1 !== 16'h0000) || (obs.rd_data2 !== 16'h0000)) begin
                     reset_mismatch++;
                     mark_req_fail(req_hit, 1, "REQ-001: registers not cleared during reset");
@@ -171,15 +181,18 @@ class reg_scoreboard;
 
         reset_released = 1'b1;
 
+        //copy current mem to mem_prev for async checks
         for (int i = 0; i < 32; i++) begin
             mem_prev[i] = mem[i];
         end
+
         last_posedge_ts = obs.ts;
         last_posedge_cycle = obs.cycle_id;
 
         illegal_same = (obs.rd_addr1 == obs.rd_addr2);
         illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
         illegal = illegal_same || illegal_conflict;
+        // expected err is based on previous cycle's illegal condition
         exp_err = prev_illegal;
 
         if (!$isunknown({obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2})) begin
@@ -234,7 +247,8 @@ class reg_scoreboard;
                     mark_req_fail(req_hit, 8, "REQ-008: illegal write updated register");
                     illegal_write_pending = 1'b0;
                 end
-            end else if (illegal_write_pending &&
+            end 
+            else if (illegal_write_pending &&
                        ((obs.rd_addr1 == illegal_write_addr) || (obs.rd_addr2 == illegal_write_addr))) begin
                 illegal_write_pending = 1'b0;
             end
@@ -261,6 +275,7 @@ class reg_scoreboard;
         prev_illegal_conflict = illegal_conflict;
     endtask
 
+    //asynchronous checks on address change or illegal condition
     task process_async(reg_observation obs);
         bit illegal;
         bit rd1_mismatch;

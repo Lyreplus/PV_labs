@@ -4,8 +4,8 @@
 `include "reg_if.sv"
 `include "reg_transaction.sv"
 
-// The register generator is responsible for creating both directed and random transactions
-// It sends these transactions to the driver via the gen2drv mailbox
+// register generator responsible for creating both directed and random transactions
+// sends them to the driver via the gen2drv mailbox
 // Directed transactions are predefined sequences that test specific scenarios, including legal and illegal cases
 // Random transactions are generated using SystemVerilog's randomization features, with constraints to ensure they are valid or intentionally illegal
 // The generator also has a method to send an end-of-test transaction, which signals the driver to stop and allows the monitor and scoreboard to finish processing
@@ -35,6 +35,32 @@ class register_generator;
     task automatic send(reg_transaction tr);
         gen2drv.put(tr);
     endtask
+
+    function automatic void set_tr(
+        ref reg_transaction tr,
+        bit wr_en,
+        logic [4:0] wr_addr,
+        logic [15:0] wr_data,
+        logic [4:0] rd_addr1,
+        logic [4:0] rd_addr2,
+        bit illegal_en
+    );
+        tr.wr_en = wr_en;
+        tr.wr_addr = wr_addr;
+        tr.wr_data = wr_data;
+        tr.rd_addr1 = rd_addr1;
+        tr.rd_addr2 = rd_addr2;
+        tr.illegal_en = illegal_en;
+        tr.illegal = (rd_addr1 == rd_addr2) ||
+                     (wr_en && ((wr_addr == rd_addr1) || (wr_addr == rd_addr2)));
+    endfunction
+
+    function automatic void force_read_only(ref reg_transaction tr);
+        tr.wr_en = 1'b0;
+        tr.wr_addr = 5'd0;
+        tr.wr_data = 16'h0000;
+        tr.illegal = (tr.rd_addr1 == tr.rd_addr2);
+    endfunction
 
     task automatic t_req001_002_reset_read();
         reg_transaction tr;
@@ -165,12 +191,7 @@ class register_generator;
                 0: begin
                     tr = new();
                     if (!tr.randomize() with { illegal_en == 0; }) begin
-                        tr.illegal_en = 1'b0;
-                        tr.wr_en = 1'b0;
-                        tr.wr_addr = 5'd0;
-                        tr.wr_data = 16'h0000;
-                        tr.rd_addr1 = 5'd0;
-                        tr.rd_addr2 = 5'd1;
+                        set_tr(tr, 1'b0, 5'd0, 16'h0000, 5'd0, 5'd1, 1'b0);
                     end
                     send(tr);
                     sent++;
@@ -178,27 +199,16 @@ class register_generator;
                 1: begin
                     tr = new();
                     if (!tr.randomize() with { illegal_en == 1; wr_en == 0; rd_addr1 == rd_addr2; }) begin
-                        tr.illegal_en = 1'b1;
-                        tr.wr_en = 1'b0;
-                        tr.wr_addr = 5'd0;
-                        tr.wr_data = 16'h0000;
-                        tr.rd_addr1 = 5'd3;
-                        tr.rd_addr2 = 5'd3;
+                        set_tr(tr, 1'b0, 5'd0, 16'h0000, 5'd3, 5'd3, 1'b1);
                     end
-                    tr.wr_addr = 5'd0;
-                    tr.wr_data = 16'h0000;
+                    force_read_only(tr);
                     send(tr);
                     sent++;
                 end
                 2: begin
                     tr = new();
                     if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                        tr.illegal_en = 1'b0;
-                        tr.wr_en = 1'b1;
-                        tr.wr_addr = 5'd7;
-                        tr.wr_data = 16'h1234;
-                        tr.rd_addr1 = 5'd0;
-                        tr.rd_addr2 = 5'd1;
+                        set_tr(tr, 1'b1, 5'd7, 16'h1234, 5'd0, 5'd1, 1'b0);
                     end
                     send(tr);
                     sent++;
@@ -210,30 +220,18 @@ class register_generator;
                         rd_addr1 == tr.wr_addr;
                         rd_addr2 != rd_addr1;
                     }) begin
-                        tr2.illegal_en = 1'b0;
-                        tr2.wr_en = 1'b0;
-                        tr2.wr_addr = 5'd0;
-                        tr2.wr_data = 16'h0000;
-                        tr2.rd_addr1 = tr.wr_addr;
-                        tr2.rd_addr2 = tr.wr_addr + 5'd1;
+                        set_tr(tr2, 1'b0, 5'd0, 16'h0000, tr.wr_addr, tr.wr_addr + 5'd1, 1'b0);
                     end
-                    tr2.wr_addr = 5'd0;
-                    tr2.wr_data = 16'h0000;
+                    force_read_only(tr2);
                     send(tr2);
                     sent++;
                 end
                 3: begin
                     tr = new();
                     if (!tr.randomize() with { illegal_en == 0; wr_en == 0; rd_addr1 != rd_addr2; }) begin
-                        tr.illegal_en = 1'b0;
-                        tr.wr_en = 1'b0;
-                        tr.wr_addr = 5'd0;
-                        tr.wr_data = 16'h0000;
-                        tr.rd_addr1 = 5'd4;
-                        tr.rd_addr2 = 5'd5;
+                        set_tr(tr, 1'b0, 5'd0, 16'h0000, 5'd4, 5'd5, 1'b0);
                     end
-                    tr.wr_addr = 5'd0;
-                    tr.wr_data = 16'h0000;
+                    force_read_only(tr);
                     send(tr);
                     sent++;
 
@@ -244,27 +242,16 @@ class register_generator;
                         rd_addr1 != rd_addr2;
                         (rd_addr1 != tr.rd_addr1) || (rd_addr2 != tr.rd_addr2);
                     }) begin
-                        tr2.illegal_en = 1'b0;
-                        tr2.wr_en = 1'b0;
-                        tr2.wr_addr = 5'd0;
-                        tr2.wr_data = 16'h0000;
-                        tr2.rd_addr1 = tr.rd_addr1 + 5'd1;
-                        tr2.rd_addr2 = tr.rd_addr2 + 5'd1;
+                        set_tr(tr2, 1'b0, 5'd0, 16'h0000, tr.rd_addr1 + 5'd1, tr.rd_addr2 + 5'd1, 1'b0);
                     end
-                    tr2.wr_addr = 5'd0;
-                    tr2.wr_data = 16'h0000;
+                    force_read_only(tr2);
                     send(tr2);
                     sent++;
                 end
                 default: begin
                     tr = new();
                     if (!tr.randomize() with { illegal_en == 0; wr_en == 1; }) begin
-                        tr.illegal_en = 1'b0;
-                        tr.wr_en = 1'b1;
-                        tr.wr_addr = 5'd9;
-                        tr.wr_data = 16'h1111;
-                        tr.rd_addr1 = 5'd0;
-                        tr.rd_addr2 = 5'd1;
+                        set_tr(tr, 1'b1, 5'd9, 16'h1111, 5'd0, 5'd1, 1'b0);
                     end
                     send(tr);
                     sent++;
@@ -277,12 +264,7 @@ class register_generator;
                         rd_addr1 != rd_addr2;
                         (rd_addr1 == wr_addr) || (rd_addr2 == wr_addr);
                     }) begin
-                        tr2.illegal_en = 1'b1;
-                        tr2.wr_en = 1'b1;
-                        tr2.wr_addr = tr.wr_addr;
-                        tr2.wr_data = 16'hAAAA;
-                        tr2.rd_addr1 = tr.wr_addr;
-                        tr2.rd_addr2 = tr.wr_addr + 5'd1;
+                        set_tr(tr2, 1'b1, tr.wr_addr, 16'hAAAA, tr.wr_addr, tr.wr_addr + 5'd1, 1'b1);
                     end
                     send(tr2);
                     sent++;
@@ -294,15 +276,9 @@ class register_generator;
                         rd_addr1 == tr.wr_addr;
                         rd_addr2 != rd_addr1;
                     }) begin
-                        tr3.illegal_en = 1'b0;
-                        tr3.wr_en = 1'b0;
-                        tr3.wr_addr = 5'd0;
-                        tr3.wr_data = 16'h0000;
-                        tr3.rd_addr1 = tr.wr_addr;
-                        tr3.rd_addr2 = tr.wr_addr + 5'd1;
+                        set_tr(tr3, 1'b0, 5'd0, 16'h0000, tr.wr_addr, tr.wr_addr + 5'd1, 1'b0);
                     end
-                    tr3.wr_addr = 5'd0;
-                    tr3.wr_data = 16'h0000;
+                    force_read_only(tr3);
                     send(tr3);
                     sent++;
                 end
