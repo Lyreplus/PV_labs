@@ -3,7 +3,7 @@
 
 `include "reg_if.sv"
 
-module reg_checker #(string NAME = "dut")(reg_if.chk_mp rif);
+module reg_checker #(string NAME = "dut")(reg_if rif);
     logic illegal_comb;
     integer log_fh;
 

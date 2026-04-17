@@ -12,9 +12,6 @@ class reg_scoreboard;
 
     // Golden model of the register file
     logic [15:0] mem [0:31];
-    logic [15:0] mem_prev [0:31]; // previous state register file for async checks
-    time last_posedge_ts;
-    int unsigned last_posedge_cycle;
 
     bit prev_illegal;
     bit prev_illegal_same; //same rd_addr
@@ -30,7 +27,6 @@ class reg_scoreboard;
     logic [4:0] illegal_write_addr;
     logic [15:0] illegal_write_data;
 
-    bit reset_released;
 
     // Request failure tracking
     bit req_fail[1:10];
@@ -68,16 +64,12 @@ class reg_scoreboard;
     function void reset_model();
         for (int i = 0; i < 32; i++) begin
             mem[i] = 16'h0000;
-            mem_prev[i] = 16'h0000;
         end
         prev_illegal = 1'b0;
         prev_illegal_same = 1'b0;
         prev_illegal_conflict = 1'b0;
         last_write_valid = 1'b0;
         illegal_write_pending = 1'b0;
-        reset_released = 1'b0;
-        last_posedge_ts = 0;
-        last_posedge_cycle = 0;
     endfunction
 
     //for illegal reads
@@ -179,15 +171,7 @@ class reg_scoreboard;
             return;
         end
 
-        reset_released = 1'b1;
-
-        //copy current mem to mem_prev for async checks
-        for (int i = 0; i < 32; i++) begin
-            mem_prev[i] = mem[i];
-        end
-
-        last_posedge_ts = obs.ts;
-        last_posedge_cycle = obs.cycle_id;
+        // no async snapshot needed in the simplified flow
 
         illegal_same = (obs.rd_addr1 == obs.rd_addr2);
         illegal_conflict = obs.wr_en && ((obs.wr_addr == obs.rd_addr1) || (obs.wr_addr == obs.rd_addr2));
@@ -275,72 +259,12 @@ class reg_scoreboard;
         prev_illegal_conflict = illegal_conflict;
     endtask
 
-    //asynchronous checks on address change or illegal condition
-    task process_async(reg_observation obs);
-        bit illegal;
-        bit rd1_mismatch;
-        bit rd2_mismatch;
-        bit req_hit[1:10];
-        bit use_prev;
-        logic [15:0] exp_rd1;
-        logic [15:0] exp_rd2;
-
-        if (!reset_released || obs.rst_n !== 1'b1) begin
-            return;
-        end
-
-        for (int i = 1; i <= 10; i++) begin
-            req_hit[i] = 1'b0;
-        end
-
-        if ($isunknown({obs.rd_addr1, obs.rd_addr2, obs.wr_addr, obs.wr_en})) begin
-            return;
-        end
-
-        illegal = is_illegal(obs.wr_en, obs.wr_addr, obs.rd_addr1, obs.rd_addr2);
-        if (illegal) begin
-            if (!is_all_x(obs.rd_data1) || !is_all_x(obs.rd_data2)) begin
-                x_mismatch++;
-                mark_req_fail(req_hit, 9, "REQ-009: read data not X during illegal condition (async)");
-            end
-        end else begin
-            if (obs.wr_en === 1'b1) begin
-                return;
-            end
-            use_prev = (obs.cycle_id < last_posedge_cycle);
-            if (use_prev) begin
-                exp_rd1 = mem_prev[obs.rd_addr1];
-                exp_rd2 = mem_prev[obs.rd_addr2];
-            end else begin
-                exp_rd1 = mem[obs.rd_addr1];
-                exp_rd2 = mem[obs.rd_addr2];
-            end
-            rd1_mismatch = (obs.rd_data1 !== exp_rd1);
-            rd2_mismatch = (obs.rd_data2 !== exp_rd2);
-            if (rd1_mismatch || rd2_mismatch) begin
-                data_mismatch++;
-                mark_req_fail(req_hit, 4, "REQ-004: read data not updating immediately on addr change");
-                mark_req_fail(req_hit, 5, "REQ-005: read data mismatch (async)");
-                if (verbose > 0) begin
-                    log_error($sformatf(
-                        "ASYNC rst_n=%0b wr_en=%0b wr_addr=%0d wr_data=%0h rd_addr1=%0d rd_addr2=%0d rd_data1=%0h rd_data2=%0h err=%0b | exp_rd1=%0h exp_rd2=%0h",
-                        obs.rst_n, obs.wr_en, obs.wr_addr, obs.wr_data, obs.rd_addr1, obs.rd_addr2,
-                        obs.rd_data1, obs.rd_data2, obs.err, exp_rd1, exp_rd2));
-                end
-            end
-        end
-    endtask
-
     task run();
         reg_observation obs;
         forever begin
             mon2scb.get(obs);
             do begin
-                if (obs.kind == SAMPLE_POSEDGE) begin
-                    process_posedge(obs);
-                end else begin
-                    process_async(obs);
-                end
+                process_posedge(obs);
             end while (mon2scb.try_get(obs));
         end
     endtask

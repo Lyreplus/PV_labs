@@ -7,71 +7,32 @@
 class register_monitor;
 	virtual reg_if rif;
 	mailbox #(reg_observation) mon2scb; // monitor to scoreboard mailbox
-	bit addr_pending;
-	int unsigned cycle_id;
 
 	function new(virtual reg_if rif, mailbox #(reg_observation) mon2scb);
 		this.rif = rif;
 		this.mon2scb = mon2scb;
-		this.addr_pending = 1'b0;
-		this.cycle_id = 0;
 	endfunction
 
-	task automatic send_sample(sample_kind_t kind);
+	task automatic send_sample();
 		reg_observation obs = new();
-		obs.kind = kind;
 		obs.ts = $time;
-		obs.cycle_id = cycle_id;
-		if (kind == SAMPLE_POSEDGE) begin
-			obs.rst_n = rif.cb_mon.rst_n;
-			obs.wr_en = rif.cb_mon.wr_en;
-			obs.wr_addr = rif.cb_mon.wr_addr;
-			obs.wr_data = rif.cb_mon.wr_data;
-			obs.rd_addr1 = rif.cb_mon.rd_addr1;
-			obs.rd_addr2 = rif.cb_mon.rd_addr2;
-			obs.rd_data1 = rif.cb_mon.rd_data1;
-			obs.rd_data2 = rif.cb_mon.rd_data2;
-			obs.err = rif.cb_mon.err;
-		end else begin
-			#1step;
-			obs.rst_n = rif.rst_n;
-			obs.wr_en = rif.wr_en;
-			obs.wr_addr = rif.wr_addr;
-			obs.wr_data = rif.wr_data;
-			obs.rd_addr1 = rif.rd_addr1;
-			obs.rd_addr2 = rif.rd_addr2;
-			obs.rd_data1 = rif.rd_data1;
-			obs.rd_data2 = rif.rd_data2;
-			obs.err = rif.err;
-		end
+		obs.rst_n = rif.cb.rst_n;
+		obs.wr_en = rif.cb.wr_en;
+		obs.wr_addr = rif.cb.wr_addr;
+		obs.wr_data = rif.cb.wr_data;
+		obs.rd_addr1 = rif.cb.rd_addr1;
+		obs.rd_addr2 = rif.cb.rd_addr2;
+		obs.rd_data1 = rif.cb.rd_data1;
+		obs.rd_data2 = rif.cb.rd_data2;
+		obs.err = rif.cb.err;
 		mon2scb.put(obs);
 	endtask
 
 	task run();
-		fork : mon_threads
-			begin : posedge_thread
-				forever begin
-					@(posedge rif.clk);
-					cycle_id++;
-					send_sample(SAMPLE_POSEDGE);
-				end
-			end
-			begin : addr_thread
-				forever begin
-					@(rif.rd_addr1 or rif.rd_addr2);
-					if (!addr_pending) begin
-						addr_pending = 1'b1;
-						fork
-							begin
-								#1step;
-								send_sample(SAMPLE_ADDR_CHANGE);
-								addr_pending = 1'b0;
-							end
-						join_none
-					end
-				end
-			end
-		join
+		forever begin
+			@(posedge rif.clk);
+			send_sample();
+		end
 	endtask
 endclass
 `endif

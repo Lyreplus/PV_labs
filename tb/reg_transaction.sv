@@ -1,8 +1,6 @@
 `ifndef REG_TRANSACTION_SV
 `define REG_TRANSACTION_SV
 
-typedef enum int {SAMPLE_POSEDGE, SAMPLE_ADDR_CHANGE} sample_kind_t;
-
 // used later with mailbox in monitor and scoreboard
 class reg_transaction;
 // random transaction 
@@ -89,9 +87,7 @@ class reg_transaction;
 endclass
 
 class reg_observation;
-	sample_kind_t kind;
 	time ts;
-	int unsigned cycle_id;
 	logic rst_n;
 	logic wr_en;
 	logic [4:0] wr_addr;
