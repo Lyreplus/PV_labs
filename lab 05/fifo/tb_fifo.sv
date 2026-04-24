@@ -70,9 +70,9 @@ module tb_fifo;
       wr_data = $urandom_range(0,255);
     end
 
-
-    // ADD ADDITIONAL STIMULUS AS NEEDED HERE
-
+    @(posedge clk);
+    wr_en = 0;
+    rd_en = 0;
 
     #50;
     $display("TEST FINISHED");
