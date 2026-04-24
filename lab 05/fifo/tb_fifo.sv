@@ -63,8 +63,45 @@ module tb_fifo;
       rd_en = 1;
     end
 
+    // fill fifo to full 
+    for (int i = 0; i < DEPTH; i++) begin
+      @(posedge clk);
+      wr_en   = 1;
+      rd_en   = 0;
+      wr_data = $urandom_range(0,255);
+    end
 
-    // ADD ADDITIONAL STIMULUS AS NEEDED HERE
+    // hold full for a few cycles
+    @(posedge clk);
+    wr_en = 0;
+    rd_en = 0;
+
+    // single read to go from full to mid filling
+    @(posedge clk);
+    wr_en = 0;
+    rd_en = 1;
+
+    // simultaneous read/write in mid occupancy
+    @(posedge clk);
+    wr_en   = 1;
+    rd_en   = 1;
+    wr_data = $urandom_range(0,255);
+
+    // drain fifo to empty (covers property)
+    for (int i = 0; i < DEPTH-2; i++) begin
+      @(posedge clk);
+      wr_en = 0;
+      rd_en = 1;
+    end
+
+    // read from empty to check assertion
+    @(posedge clk);
+    wr_en = 0;
+    rd_en = 1;
+
+    @(posedge clk);
+    wr_en = 0;
+    rd_en = 0;
 
     #50;
     $display("TEST FINISHED");
