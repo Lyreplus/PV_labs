@@ -2,5 +2,7 @@ prova.sv
 **/*.pdf
 **/*.ini
 **/*.tgz
-transcript
+**/transcript*
+**/*.txt
+**/*.png
 work/

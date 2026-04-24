@@ -32,7 +32,7 @@ interface register_interface(input bit clk);
     logic [ADDRESS_LENGTH-1:0]  wr_addr, rd_addr1, rd_addr2;
     logic [DATA_WIDTH-1:0]      wr_data, rd_data1, rd_data2;
 
-    clocking cb @(posedge clk);
+    clocking clockingblock @(posedge clk);
         default input #1step output #0;
         inout rst_n;
 
@@ -46,10 +46,126 @@ interface register_interface(input bit clk);
         input rd_data1;
         input rd_data2;
         input err;
-    endclocking: cb
+    endclocking: clockingblock
 
 endinterface //register_interface
 
+// ******** TRANSACTION ********
+
+class register_transaction;
+    // transaction input
+	rand bit                        rst_n, wr_en;
+	rand bit [ADDRESS_LENGTH-1:0]   wr_addr, rd_addr1, rd_addr2;
+	rand bit [DATA_WIDTH-1:0]       wr_data;
+	
+    // transaction output
+    logic [15:0]                    rd_data1;
+	logic [15:0]                    rd_data2;
+	logic                           err;
+
+    // transaction control
+	bit                             is_end;
+	bit                             illegal;
+
+    // Constraints
+	constraint addresses {
+		wr_addr inside {[0:31]};
+		rd_addr1 inside {[0:31]};
+		rd_addr2 inside {[0:31]};
+	}
+
+    constraint data {
+        wr_data inside {[0:16'hFFFF]};
+    }
+
+    constraint rst_enable { rst_n dist {1'b1 := 1, 1'b0 := 9}; }
+
+	constraint wr_enable { wr_en dist {1'b1 := 1, 1'b0 := 1}; }
+
+	constraint corner_cases_data {
+		wr_data dist {
+			16'h0123 := 1,
+            16'h9876 := 1,
+			16'hFEDC := 1,
+			16'hFFFF := 1,
+			16'hAAAA := 1,
+            16'h5555 := 1,
+			[0:16'hFFFF] :/ 94
+		};
+	}
+
+	constraint addresses_collisions {
+		rd_addr1 dist { rd_addr2 := 1, [0:31] :/ 4 };
+		wr_addr dist { rd_addr1 := 1, rd_addr2 := 1, [0:31] :/ 8 };
+	}
+
+	function new();
+		is_end = 1'b0;
+		illegal = 1'b0;
+	endfunction
+
+	function void illegal_check();
+		illegal = (rd_addr1 == rd_addr2) ||
+				  (wr_en && ((wr_addr == rd_addr1) || (wr_addr == rd_addr2)));
+	endfunction
+
+    function void pre_randomize();
+        $display("Seed: %0d", $urandom);
+    endfunction
+endclass
+
+// ******** DRIVER ********
+
+class register_driver;
+    virtual interface register_interface rif;
+    mailbox #(register_transaction) gen2drv;
+    bit done;
+
+    function new(virtual register_interface rif, mailbox #(register_transaction) gen2drv);
+        this.rif = rif;
+        this.gen2drv = gen2drv;
+        this.done = 1'b0;
+    endfunction
+
+    // automatic to 
+    task automatic init_signals();
+        rif.clockingblock.rst_n <= 1'b1;
+        rif.clockingblock.wr_en <= 1'b0;
+        rif.clockingblock.wr_addr <= '0;
+        rif.clockingblock.wr_data <= '0;
+        rif.clockingblock.rd_addr1 <= '0;
+        rif.clockingblock.rd_addr2 <= '0;
+    endtask
+
+    task automatic reset_dut();
+        init_signals();
+
+        rif.clockingblock.rst_n <= 1'b0;
+        repeat (2) @(posedge rif.clk);
+
+        rif.clockingblock.rst_n <= 1'b1;
+        @(posedge rif.clk); // DUT has time to come out of reset before transactions
+    endtask
+
+    task run();
+        reg_transaction tr;
+        forever begin
+            gen2drv.get(tr);
+            if (tr.is_end) begin
+                rif.clockingblock.wr_en <= 1'b0;
+                done = 1'b1;
+                break;
+            end
+
+            @(negedge rif.clk);
+            rif.wr_en <= tr.wr_en;
+            rif.wr_addr <= tr.wr_addr;
+            rif.wr_data <= tr.wr_data;
+            rif.rd_addr1 <= tr.rd_addr1;
+            rif.rd_addr2 <= tr.rd_addr2;
+        end
+    endtask
+endclass
 
 module tb_regfile;
     logic clk;
