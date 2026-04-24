@@ -63,8 +63,16 @@ module tb_fifo;
       rd_en = 1;
     end
 
+    repeat (13) begin
+      @(posedge clk);
+      wr_en = 1;
+      rd_en = 0;
+      wr_data = $urandom_range(0,255);
+    end
+
 
     // ADD ADDITIONAL STIMULUS AS NEEDED HERE
+
 
     #50;
     $display("TEST FINISHED");
