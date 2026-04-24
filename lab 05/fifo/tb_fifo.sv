@@ -63,13 +63,25 @@ module tb_fifo;
       rd_en = 1;
     end
 
-    // fill fifo to full 
-    for (int i = 0; i < DEPTH; i++) begin
+    // Drain to empty before filling (avoids overrun from earlier stimulus)
+    while (!empty) begin
+      @(posedge clk);
+      wr_en = 0;
+      rd_en = 1;
+    end
+    wr_en = 0;
+    rd_en = 0;
+    @(posedge clk);
+
+    // Fill FIFO to full without extra writes
+    while (!full) begin
       @(posedge clk);
       wr_en   = 1;
       rd_en   = 0;
       wr_data = $urandom_range(0,255);
     end
+    wr_en = 0;
+    rd_en = 0;
 
     // hold full for a few cycles
     @(posedge clk);
