@@ -6,3 +6,4 @@ prova.sv
 **/*.txt
 **/*.png
 work/
+**/_minted

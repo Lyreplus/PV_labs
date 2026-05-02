@@ -88,4 +88,80 @@ module tb_decode_unit;
 
   // INSERT ASSERTIONS BELOW
 
+    property PT01_instruction_acceptance;
+      @(posedge clk) disable iff (!rst_n)
+        instr_valid == 1'b1 |=> !hazard_stall |->  (opcode == $past(instr[15:12]))  &&
+                                          (rd     == $past(instr[11:8]))   &&
+                                          (rs     == $past(instr[7:4]))    &&
+                                          (imm    == $past(instr[3:0]));
+    endproperty
+
+    assert property (PT01_instruction_acceptance)
+    else $error("PT01: instruction hasn't been accepted or fields haven't been filled with corresponding bits of instr after instr_valid is high and no hazard stall in the same cycle");
+
+    property PT02_decode_latency;
+      @(posedge clk) disable iff (!rst_n)
+      instr_valid == 1'b1 |=> !hazard_stall |-> ##2 decode_done == 1'b1;
+    endproperty
+
+    assert property (PT02_decode_latency)
+    else $error("PT02: decode_done hasn't been asserted in cycle N+2 after instruction acceptance");
+
+    property PT03_decode_single_cycle;
+      @(posedge clk) disable iff (!rst_n)
+        decode_done == 1'b1 |=> decode_done == 1'b0;
+    endproperty
+
+    assert property (PT03_decode_single_cycle)
+    else $error("PT03: decode_done hasn't endured for only a single cycle");
+
+    property PT04_hazard_occurrence;
+      @(posedge clk) disable iff (!rst_n)
+      (rd == instr[7:4]) && instr_valid |=> hazard_stall == 1'b1;
+    endproperty
+
+    assert property (PT04_hazard_occurrence)
+    else $error("PT04: hazard_stall hasn't been asserted when rs matches previous rd");
+
+    property PT05_hazard_current_instruction;
+      @(posedge clk) disable iff (!rst_n)
+      (rd == instr[7:4]) && instr_valid |=> (opcode != instr[15:12])  &&
+                                            (rd     != instr[11:8])   &&
+                                            (rs     != instr[7:4])    &&
+                                            (imm    != instr[3:0]);
+    endproperty
+    
+    assert property (PT05_hazard_current_instruction)
+    else $error("PT05: current instruction fields haven't been blocked from being accepted when hazard_stall is asserted");
+    
+    property PT06_hazard_decode_done;
+      @(posedge clk) disable iff (!rst_n)
+      (rd == instr[7:4]) && instr_valid |=> decode_done == 1'b0;
+    endproperty
+
+    assert property (PT06_hazard_decode_done)
+    else $error("PT06: decode_done has been asserted when hazard occurs");
+
+    property PT07_retain_instruction_during_hazard;
+      @(posedge clk) disable iff (!rst_n)
+      (hazard_stall == 1'b1) && (instr_valid == 1'b1) |=> (opcode == $past(opcode))  &&
+                                                           (rd     == $past(rd))      &&
+                                                           (rs     == $past(rs))      &&
+                                                           (imm    == $past(imm));
+    endproperty
+
+    assert property (PT07_retain_instruction_during_hazard)
+    else $error("PT07: decoded fields haven't been retained during hazard stall");
+
+    property PT08_reset_behaviour;
+      @(posedge clk) !rst_n |=> (decode_done == 1'b0) &&
+                                (opcode == 4'h0)      &&
+                                (rd     == 4'h0)      &&
+                                (rs     == 4'h0)      &&
+                                (imm    == 4'h0)      &&
+                                (hazard_stall == 1'b0);
+    endproperty
+
+    assert property (PT08_reset_behaviour)
+    else $error("PT10: On reset, outputs haven't been initialized to zero or decode_done and hazard_stall haven't been deasserted");
 endmodule
