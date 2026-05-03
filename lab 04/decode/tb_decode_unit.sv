@@ -125,10 +125,10 @@ module tb_decode_unit;
 
     property PT05_hazard_current_instruction;
       @(posedge clk) disable iff (!rst_n)
-      (rd == instr[7:4]) && instr_valid |=> (opcode != instr[15:12])  &&
-                                            (rd     != instr[11:8])   &&
-                                            (rs     != instr[7:4])    &&
-                                            (imm    != instr[3:0]);
+      hazard_stall == 1'b1 |-> (opcode == $past(opcode))  &&
+                                            (rd     == $past(rd))      &&
+                                            (rs     == $past(rs))      &&
+                                            (imm    == $past(imm));
     endproperty
     
     assert property (PT05_hazard_current_instruction)
@@ -136,24 +136,13 @@ module tb_decode_unit;
     
     property PT06_hazard_decode_done;
       @(posedge clk) disable iff (!rst_n)
-      (rd == instr[7:4]) && instr_valid |=> decode_done == 1'b0;
+      hazard_stall == 1'b1 |-> decode_done == 1'b0;
     endproperty
 
     assert property (PT06_hazard_decode_done)
     else $error("PT06: decode_done has been asserted when hazard occurs");
 
-    property PT07_retain_instruction_during_hazard;
-      @(posedge clk) disable iff (!rst_n)
-      (hazard_stall == 1'b1) && (instr_valid == 1'b1) |=> (opcode == $past(opcode))  &&
-                                                           (rd     == $past(rd))      &&
-                                                           (rs     == $past(rs))      &&
-                                                           (imm    == $past(imm));
-    endproperty
-
-    assert property (PT07_retain_instruction_during_hazard)
-    else $error("PT07: decoded fields haven't been retained during hazard stall");
-
-    property PT08_reset_behaviour;
+    property PT07_reset_behaviour;
       @(posedge clk) !rst_n |=> (decode_done == 1'b0) &&
                                 (opcode == 4'h0)      &&
                                 (rd     == 4'h0)      &&
@@ -162,6 +151,6 @@ module tb_decode_unit;
                                 (hazard_stall == 1'b0);
     endproperty
 
-    assert property (PT08_reset_behaviour)
-    else $error("PT10: On reset, outputs haven't been initialized to zero or decode_done and hazard_stall haven't been deasserted");
+    assert property (PT07_reset_behaviour)
+    else $error("PT07: On reset, outputs haven't been initialized to zero or decode_done and hazard_stall haven't been deasserted");
 endmodule

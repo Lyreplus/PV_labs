@@ -93,66 +93,66 @@ module tb_fetch_unit;
 
   // Assertion 1
 
-    property reset_pc_zero;
+    property PT01_reset_pc_zero;
         @(posedge clk) !rst_n |=> (dut.pc == 8'h00);
     endproperty
 
-    assert property (reset_pc_zero)
+    assert property (PT01_reset_pc_zero)
     else $error("On reset PC hasn't gone to zero: pc=%0h", dut.pc);
 
   // Assertion 2
 
-    property branch_precedence_over_pc_en;
+    property PT02_branch_precedence_over_pc_en;
         @(posedge clk) 
         disable iff (!rst_n)
         branch_en |=> (dut.pc == $past(branch_addr));
     endproperty
 
-    assert property (branch_precedence_over_pc_en)
+    assert property (PT02_branch_precedence_over_pc_en)
     else $error("No precedence for branch_en over pc_en");
 
   // Assertion 3
 
-    property pc_en_increment;
+    property PT03_pc_en_increment;
         @(posedge clk)
         disable iff (!rst_n)
         (pc_en && !branch_en) |=> dut.pc == ($past(dut.pc) + 8'd2);
     endproperty
     
-    assert property (pc_en_increment)
+    assert property (PT03_pc_en_increment)
     else $error("PC hasn't incremented by 2 on pc_en && !branch_en. pc = %0h, Past pc = %0h", dut.pc, $past(dut.pc));
 
   // Assertion 4
 
-    property pc_stability;
+    property PT04_pc_stability;
         @(posedge clk)
         disable iff (!rst_n)
         (!pc_en && !branch_en) |=> dut.pc == ($past(dut.pc));
     endproperty
 
-    assert property (pc_stability)
+    assert property (PT04_pc_stability)
     else $error("PC hasn't hold its value on !pc_en && !branch_en. pc = %0h, Past pc = %0h", dut.pc, $past(dut.pc));
 
   // Assertion 5
 
-    property instruction_consistency;
+    property PT05_instruction_consistency;
         @(posedge clk)
         disable iff (!rst_n)
         (instr == dut.mem[dut.pc]);
     endproperty
 
-    assert property (instruction_consistency)
+    assert property (PT05_instruction_consistency)
     else $error("instruction isn't equal to mem[pc]. Instr = %0h, Mem[pc] = %0h", instr, dut.mem[dut.pc]);
 
   // Assertion 6
 
-    property pc_range_safety;
+    property PT06_pc_range_safety;
         @(posedge clk)
         disable iff (!rst_n)
-        (dut.pc inside {[8'h00:8'hFF]});
+        (dut.pc inside {[8'h00:8'hFF]}) && !$isunknown(dut.pc);
     endproperty
 
-    assert property (pc_range_safety)
+    assert property (PT06_pc_range_safety)
     else $error("PC out of range. PC = %0h", dut.pc);
 
 endmodule
