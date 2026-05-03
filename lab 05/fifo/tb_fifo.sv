@@ -42,7 +42,6 @@ module tb_fifo;
     @(posedge clk);
     wait (rst_n);
 
-
     // Stimulus
     repeat (5) begin
       @(posedge clk);
