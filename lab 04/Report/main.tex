@@ -1,0 +1,244 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage{tabularray}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{minted}
+
+
+% Definizione dei colori
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{bluekeywords}{rgb}{0.13,0.13,1}
+
+% Definizione dello stile SystemVerilog
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{bluekeywords}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    language=Verilog,
+    % Aggiunta di keyword specifiche per SystemVerilog presenti nel tuo codice
+    morekeywords={logic, string, task, endtask, assert, enum, struct, typedef, byte, int, longint, shortint, bit, logic, reg, input, output, inout, initial, begin, end, module, endmodule, case, endcase, default, if, else, for, timescale, finish, display}
+}
+
+\lstset{style=mystyle}
+
+\title{Processor Verification - Lab 4 \\ Definition Specification Document}
+\author{Lorenzo Pattaro Zonta}
+
+\begin{document}
+
+\maketitle
+
+\section{Fetch Unit}
+
+\subsection{Functional Description}
+The fetch unit maintains a program counter (PC) and outputs the instruction located at the current PC address. It supports normal sequential execution and conditional branching via an alternate branch address.
+
+\subsection{Module Interface}
+
+\begin{table}[H]
+\centering
+    \begin{tabular}{|l|l|l|p{8cm}|}
+    \hline
+    \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
+    \hline
+    clk         & input  & 1   & Clock signal. \\
+    rst\_n      & input  & 1   & Active-low synchronous reset. \\
+    pc\_en      & input  & 1   & Enables PC increment (sequential fetch). \\
+    branch\_en  & input  & 1   & Enables branch to branch\_addr. \\
+    branch\_addr& input  & 8   & Branch target address. \\
+    instr       & output & 16  & Instruction word fetched from memory. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Behavioral Description}
+An instruction memory is initialized with dummy values. On each clock edge, the PC updates to either the branch address (if branch is enabled), the next sequential address (PC + 2 if \texttt{pc\_en} is asserted), or holds its value. The output instruction is read from memory at the updated PC. On reset, the PC is cleared to zero and the instruction at address zero is output.
+
+
+\subsection{List of assertions}
+This is the list of the assertions for the fetch unit: 
+\begin{itemize}
+    \item Reset: after a reset cycle, PC must be zero
+    \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+        property p_reset_pc_zero;
+          @(posedge clk) !rst_n |=> (dut.pc == 8'h00);
+        endproperty
+        assert property (p_reset_pc_zero)
+          else $error("PC not zero after reset");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_branch_priority_load;
+    @(posedge clk) disable iff (!rst_n)
+      $past(branch_en) |-> (dut.pc == $past(branch_addr));
+  endproperty
+
+  assert property (p_branch_priority_load)
+    else $error("Branch priority load failed");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_branch_priority_not_increment;
+    @(posedge clk) disable iff (!rst_n)
+      $past(branch_en) |-> (dut.pc != ($past(dut.pc) + 8'd2));
+  endproperty
+
+  assert property (p_branch_priority_not_increment)
+    else $error("Branch priority not-increment failed");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_pc_increment;
+    @(posedge clk) disable iff (!rst_n)
+      ($past(pc_en) && !$past(branch_en)) |-> (dut.pc == ($past(dut.pc) + 8'd2));
+  endproperty
+  assert property (p_pc_increment)
+    else $error("PC increment failed");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_pc_hold;
+    @(posedge clk) disable iff (!rst_n)
+      (!$past(pc_en) && !$past(branch_en)) |-> (dut.pc == $past(dut.pc));
+  endproperty
+
+  assert property (p_pc_hold)
+    else $error("PC hold failed");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_instr_matches_mem;
+    @(posedge clk) disable iff (!rst_n)
+      (instr == dut.mem[dut.pc]);
+  endproperty
+
+  assert property (p_instr_matches_mem)
+    else $error("Instruction does not match memory at PC");
+    \end{minted}
+    \item \begin{minted}[fontsize=\small,breaklines]{systemverilog}
+      property p_pc_in_range;
+    @(posedge clk) disable iff (!rst_n)
+      (dut.pc inside {[8'h00:8'hFF]});
+  endproperty
+  assert property (p_pc_in_range)
+    else $error("PC out of range");
+    \end{minted}
+\end{itemize}
+
+\section{Decode Unit}
+
+\subsection{Functional Description}
+The decode unit receives a 16-bit instruction and splits it into opcode, destination register, source register, and immediate fields. It models a fixed two-cycle decode latency and performs a simple data hazard check that can stall decoding.
+
+\subsection{Module Interface}
+\begin{table}[H]
+\centering
+    \begin{tabular}{|l|l|l|p{8cm}|}
+    \hline
+    \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
+    \hline
+    clk          & input  & 1   & Clock signal. \\
+    rst\_n       & input  & 1   & Active-low synchronous reset. \\
+    instr\_valid & input  & 1   & Indicates the input instruction is valid. \\
+    instr        & input  & 16  & Instruction word from fetch stage. \\
+    decode\_done & output & 1   & Pulses when decode latency completes. \\
+    opcode       & output & 4   & Opcode field (bits 15:12). \\
+    rd           & output & 4   & Destination register (bits 11:8). \\
+    rs           & output & 4   & Source register (bits 7:4). \\
+    imm          & output & 4   & Immediate field (bits 3:0). \\
+    hazard\_stall& output & 1   & High when a data hazard is detected. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Behavioral Description}
+Instruction acceptance occurs when \texttt{instr\_valid}=1 and \texttt{hazard\_stall}=0 in the next cycle. On acceptance, the fields \texttt{opcode, rd, rs,} and \texttt{imm} capture instr[15:12], instr[11:8], instr[7:4], and instr[3:0], respectively. After an instruction is accepted in cycle $N$, \texttt{decode\_done} must assert exactly in cycle $N+2$ and it must be a single-cycle pulse.
+
+A hazard is detected when the destination register \texttt{rd} of the previously accepted instruction matches the source register \texttt{rs} of the current instruction. When this hazard occurs, \texttt{hazard\_stall asserts}, the current instruction is not accepted until the stall clears, and \texttt{decode\_done} must not assert during the stall window. While \texttt{instr\_valid}=1 and \texttt{hazard\_stall}=1, the decoded fields (\texttt{opcode, rd, rs, imm}) must retain their previous values and only update upon acceptance.
+
+For back-to-back valid instructions with no hazard, each instruction is accepted immediately in its cycle, and each acceptance produces a \texttt{decode\_done} pulse two cycles later, which may result in consecutive \texttt{decode\_done} pulses.
+
+When \texttt{rst\_n}=0, all outputs are cleared to zero, and no instruction is accepted or completed until reset is released.
+
+% \section{Objectives of the verification}
+% The primary objectives of this verification are:
+% \begin{itemize}
+%     \item 
+% \end{itemize}
+
+
+% \section{Verification Plan Details}
+
+% \begin{center}
+% \begin{longtblr}[
+%   label = {tab:testo},
+%   caption = {Verification Plan Metrics}
+% ]{
+%   colspec = {c c c }, 
+%   rowhead = 1, 
+%   hlines,      
+%   vlines,      
+%   row{1} = {font=\bfseries}, 
+% }  
+%     Metric & Description & Goal \\
+%      & & \\
+% \end{longtblr}
+% \end{center}
+
+
+% \section{Results and Analysis}
+
+
+% \newpage
+% \begin{center}
+%     \begin{longtblr}[
+%   label = {tab:test_table},
+%   caption = {Results of testbench simulations}
+% ]{
+%   colspec = {c c c c}, % 'X' funziona come in tabularx
+%   rowhead = 1, % Ripete la prima riga (intestazione) su ogni pagina
+%   hlines,      % Disegna tutte le linee orizzontali automaticamente
+%   vlines,      % Disegna tutte le linee verticali
+%   row{1} = {font=\bfseries}, % Rende l'intestazione grassetto
+% }  
+%     Design & Test Pass Rate & Total \# of errors & Requirement(s) Failed  \\
+%     & & & \\
+% \end{longtblr}
+% \end{center}
+
+% \section{Tools used}
+% The verification process has been performed using the following tools:
+% \begin{itemize}
+%     \item QuestaSim
+% \end{itemize}
+
+\section{Conclusion}
+
+
+
+\newpage
+\section{Appendix}
+\subsection{Number of hours required}
+For the completion of this laboratory, it has been needed x hours. 
+\subsection{Appendix A}
+% \lstinputlisting[language=Bash, firstnumber=1]{script_questasim.sh}
+
+\end{document}
