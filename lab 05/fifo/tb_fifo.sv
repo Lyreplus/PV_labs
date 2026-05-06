@@ -63,8 +63,14 @@ module tb_fifo;
     end
 
     // ADD ADDITIONAL STIMULUS AS NEEDED HERE
+    repeat (3) begin
+      @(posedge clk);
+      wr_en = 0;
+      rd_en = 1;
+    end
 
-    repeat (13) begin
+
+    repeat (16) begin
       @(posedge clk);
       wr_en = 1;
       rd_en = 0;
@@ -74,6 +80,10 @@ module tb_fifo;
     @(posedge clk);
     wr_en = 0;
     rd_en = 0;
+
+    @(posedge clk);
+    wr_en = 1;
+    rd_en = 1;
 
     #50;
     $display("TEST FINISHED");
@@ -99,7 +109,7 @@ module tb_fifo;
     }
 
     // Cover occupancy transitions
-    coverpoint dut.count {
+    count: coverpoint dut.count {
       bins empty_bin   = {0};
       bins mid_bins    = {[1:DEPTH-1]};
       bins full_bin    = {DEPTH};
@@ -110,7 +120,7 @@ module tb_fifo;
     coverpoint rd_en;
 
     // Cross coverage: wr_en vs rd_en
-    cross wr_en, rd_en {
+    a: cross wr_en, rd_en {
       bins write_only = binsof(wr_en) intersect {1} &&
                         binsof(rd_en) intersect {0};
       bins read_only  = binsof(wr_en) intersect {0} &&
