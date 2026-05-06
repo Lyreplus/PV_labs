@@ -103,9 +103,9 @@ module tb_simple_cache;
         coverpoint read;
 
         read_write: cross read, write {
-            bins read_only  = {1'b0, 1'b1};
-            bins write_only = {1'b1, 1'b0};
-            bins illegal    = {1'b1, 1'b1};
+            bins read_only  = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b0};
+            bins write_only = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b1};
+            bins illegal    = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b1};
         }
 
     endgroup
