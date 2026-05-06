@@ -8,3 +8,6 @@ work/
 **/*.aux
 **/*.log
 **/*.rubbercache
+**/*.gz
+**/*.fls
+**/*.fdb_latexmk

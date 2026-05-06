@@ -63,12 +63,11 @@ module tb_fifo;
     end
 
     // ADD ADDITIONAL STIMULUS AS NEEDED HERE
-    repeat (3) begin
+    repeat (4) begin
       @(posedge clk);
       wr_en = 0;
       rd_en = 1;
     end
-
 
     repeat (16) begin
       @(posedge clk);
@@ -76,10 +75,6 @@ module tb_fifo;
       rd_en = 0;
       wr_data = $urandom_range(0,255);
     end
-
-    @(posedge clk);
-    wr_en = 0;
-    rd_en = 0;
 
     @(posedge clk);
     wr_en = 1;

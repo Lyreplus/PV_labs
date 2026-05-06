@@ -14,43 +14,45 @@
 \usepackage{tgpagella}
 
 
-% Definizione dei colori
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-\definecolor{bluekeywords}{rgb}{0.13,0.13,1}
-
-% Definizione dello stile SystemVerilog
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{bluekeywords}\bfseries,
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2,
-    language=Verilog,
-    morekeywords={logic, string, task, endtask, assert, enum, struct, typedef, byte, int, longint, shortint, bit, logic, reg, input, output, inout, initial, begin, end, module, endmodule, case, endcase, default, if, else, for, timescale, finish, display}
-}
-
-\lstset{style=mystyle}
-
-\title{Processor Verification - Lab 5 \\ Coverage}
+\title{Processor Verification \\Lab 5 - Coverage}
 \author{Lorenzo Pattaro Zonta}
 
 \begin{document}
 
 \maketitle
+
+\section{Introduction}
+
+\section{Design Under Test}
+The design under test (DUT) is a simple FIFO module with the following interface:
+
+\begin{table}[H]
+\centering
+    \begin{tabular}{|l|l|l|p{8cm}|}
+      \hline
+      \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
+      \hline
+      clk & input & 1 bit & Clock signal \\
+      rst\_n & input & 1 bit & Active-low reset signal \\
+      wr\_en & input & 1 bit & Write enable signal \\
+      rd\_en & input & 1 bit & Read enable signal \\
+      wr\_data & input & 8 bits & Data to be written into the FIFO \\
+      rd\_data & output & 8 bits & Data read from the FIFO \\
+      empty & output & 1 bit & Indicates if the FIFO is empty \\
+      full & output & 1 bit & Indicates if the FIFO is full \\
+      count & output & 4 bits & Number of elements currently in the FIFO \\
+      \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Behavioral description}
+The FIFO module implements a first-in-first-out data structure. It has a depth of 16 and a width of 8 bits. The module operates as follows:
+\begin{itemize}
+  \item On the rising edge of the clock, if the reset signal is active (low), the FIFO is cleared, setting the count to 0 and the empty flag to 1.
+  \item If the write enable signal is high and the FIFO is not full, the data on the wr\_data input is written into the FIFO, the count is incremented, and the empty flag is cleared.
+  \item If the read enable signal is high and the FIFO is not empty, the data at the front of the FIFO is output on the rd\_data output, the count is decremented, and if the count reaches 0, the empty flag is set.
+  \item The full flag is set when the count reaches 16, indicating that the FIFO cannot accept more data until some data is read out.
+\end{itemize}
 
 \section{Task 1}
 
@@ -91,15 +93,37 @@ In either cases (commented stimulus and uncommented one) these are not covered:
 \end{itemize}
 
 \section{Task 3}
-In this task
+The following stimulus has been added to the testbench to cover the missing bins and reach a 100\% covergroup coverage and 100\% directive coverage:
+
+\begin{minted}[fontsize=\small,breaklines]{systemverilog}
+    repeat (4) begin
+      @(posedge clk);
+      wr_en = 0;
+      rd_en = 1;
+    end
+
+    repeat (16) begin
+      @(posedge clk);
+      wr_en = 1;
+      rd_en = 0;
+      wr_data = $urandom_range(0,255);
+    end
+
+    @(posedge clk);
+    wr_en = 1;
+    rd_en = 1;
+
+\end{minted}
+The first stimulus covers the bins \texttt{went\_empty}, \texttt{empty\_bin} and the directive \texttt{cover property \\(becomes\_empty\_after\_read)} because the dut is emptied and the empty flag is set when the last value is read and the FIFO becomes empty.
+The second stimulus covers the \texttt{went\_full} and \texttt{full\_bin} bins because we fully populate the FIFO, with 16 writes, and the last stimulus covers the \texttt{illegal} bin.ì, as we try to write and read at the same time, which is not allowed by the design.
 \subsection{Module Interface}
 
-\begin{table}[H]
+\begin{table}
 \centering
     \begin{tabular}{|l|l|l|p{8cm}|}
     \hline
     \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
-\hline
+    \hline
     \end{tabular}
 \end{table}
 
