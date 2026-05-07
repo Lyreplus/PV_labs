@@ -56,11 +56,11 @@ module tb_simple_cache;
         reset = 1; 
         #20 reset = 0;
 
-        @(posedge clk); //test a read miss on an invalid line
+        @(posedge clk); // read miss on invalid line
         read = 1; write = 1; addr = 8'hA5; //
 
         @(posedge clk);
-        read = 1; write = 1; addr = 8'hA5; //test a read hit on a valid line
+        read = 1; write = 1; addr = 8'hA5; // read hit on valid line
 
         #50
         $display("TEST FINISHED");
@@ -111,7 +111,7 @@ module tb_simple_cache;
         read_write: cross read, write {
             bins read_only  = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b0};
             bins write_only = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b1};
-            bins illegal    = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b1};
+            bins read_precedence = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b1};
             bins nothing    = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b0};
         }
 

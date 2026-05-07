@@ -179,16 +179,117 @@ There is no replacement policy since it is a direct-mapped cache, which always o
 Additionally, there is no write-back or write-through policy implemented; writes only update the cache without modeling any backing memory. 
 Miss handling is simplified by returning a value based on the address instead of fetching from real memory. Finally, there are no stall or wait states; all operations complete in one cycle.
 
+\section*{Task 4}
+I have implemented the following covergroups and coverpoints in the testbench. I have created two covergroups: \texttt{cache\_cov} for general coverage of the cache behavior and \texttt{cache\_cov\_reset} specifically for coverage related to the reset behavior, to be sure that we do not obtain false positives in the coverage results due to the reset state of the cache.
+With the provided random test, the total covergroup coverage is 97.93\%, with the covergroup \texttt{cache\_cov} at 95.87\% and the covergroup \texttt{cache\_cov\_reset} at 100\%. 
+The directive coverage is 100\%, as both properties are covered by the random stimulus.
+The toggle coverage is 99.41\%, with the only missing toggle being the one of the hit signal when both read and write are asserted, which is not possible in our design as read takes precedence over write.
 
-\section{Conclusion}
+\begin{minted}[fontsize=\small,breaklines]{systemverilog}
 
+    covergroup cache_cov @(posedge clk iff !reset);
+        option.per_instance = 1;
+        option.name = "Coverage for simple_cache";
+
+        tag_bin: coverpoint dut.tag {
+            bins tag = {[dut.TAG_WIDTH-1:0]};
+        } 
+
+        index_bin: coverpoint dut.index {
+            bins index = {[dut.INDEX_WIDTH-1:0]};
+        }
+
+        offset_bin: coverpoint dut.offset {
+            bins offset = {[dut.OFFSET_WIDTH-1:0]};
+        }
+
+        coverpoint hit {
+            bins hit_bin = {1'b1};
+            bins miss_bin = {1'b0};
+        }
+
+        validity: coverpoint dut.valid_array[dut.index] {
+            bins valid_bin = {1'b1};
+            bins invalid_bin = {1'b0};
+        }
+
+        coverpoint write;
+        coverpoint read;
+
+        read_write: cross read, write {
+            bins read_only  = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b0};
+            bins write_only = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b1};
+            bins read_precedence    = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b1};
+            bins nothing    = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b0};
+        }
+
+        hit_miss_cross: cross hit, valid_accessed {
+            bins hit_valid   = binsof(hit) intersect {1'b1} && binsof(valid_accessed) intersect {1'b1};
+            bins miss_valid  = binsof(hit) intersect {1'b0} && binsof(valid_accessed) intersect {1'b1};
+            bins hit_invalid = binsof(hit) intersect {1'b1} && binsof(valid_accessed) intersect {1'b0};
+            bins miss_invalid= binsof(hit) intersect {1'b0} && binsof(valid_accessed) intersect {1'b0};
+        }
+
+        read_write_prev_hit: cross read_prev, write_prev, hit {
+            bins read_nowrite_hit       = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
+            bins read_nowrite_miss      = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            bins noread_write_hit      = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins noread_write_miss     = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            bins read_write_hit  = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins read_write_miss = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            bins nothing                = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            illegal_bins not_possible   = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
+        }
+
+    endgroup
+
+    covergroup cache_cov_reset @(posedge clk);
+        option.per_instance = 1;
+        option.name = "Coverage for simple_cache - reset behavior";
+        
+        reset_cp: coverpoint dut.reset {
+            bins reset_active = {1'b1};
+            bins reset_inactive = {1'b0};
+        }
+    endgroup
+
+    // miss on invalid line
+    property miss_on_invalid;
+        @(posedge clk) disable iff (reset) (read && !dut.valid_array[dut.index]) |-> (hit == 0);
+    endproperty
+
+    // hit on valid line with matching tag
+    property hit_on_valid;
+        @(posedge clk) disable iff (reset) (read && dut.valid_array[dut.index] && dut.tag_array[dut.index] == dut.tag) |-> (hit == 1);
+    endproperty
+\end{minted}
+
+\section*{Task 5}
+The following stimulus has been added to the testbench to fully cover the toggle coverage and the remaining bins of the covergroups.
+For the toggle coverage, the missing toggle was the reset from 0 to 1, which is not possible in the provided stimulus as the reset is only asserted at the beginning of the test and then deasserted. So, I have added a reset pulse in the middle of the test (\texttt{\#20 reset = 1; \#20 reset = 0;}).
+The first missing bins of the covergroups was "read\_precedence" of the read\_write cross coverage, which is hit when both read and write are asserted at the same time, so I have added a stimulus that asserts both read and write at the same time (\texttt{@(posedge clk); read = 1; write = 1;}).
+I've also added addr = 8'hA5; because there was also the bins "read\_write\_hit" and "read\_write\_miss" of the read\_write\_prev\_hit cross coverage, which require a read hit and a read miss when both read and write are asserted at the same time. The first time we obtain a read miss because the line is invalid, and the second time we obtain a read hit because the line is now valid and contains the data we wrote in the previous cycle.
+\begin{minted}[fontsize=\small,breaklines]{systemverilog}
+@(posedge clk);
+        reset = 1; 
+        #20 reset = 0;
+
+        @(posedge clk); // read miss on invalid line
+        read = 1; write = 1; addr = 8'hA5; //
+
+        @(posedge clk);
+        read = 1; write = 1; addr = 8'hA5; // read hit on valid line
+\end{minted}
+
+Thanks to these additional stimuli, I have obtained a 100\% toggle coverage, as well as 100\% covergroup coverage and 100\% directive coverage.
 
 
 \newpage
 \section{Appendix}
 \subsection{Number of hours required}
-For the completion of this laboratory, it has been needed x hours. 
-\subsection{Appendix A}
-% \lstinputlisting[language=Bash, firstnumber=1]{script_questasim.sh}
+For the completion of this laboratory, it has been needed 10 hours. 
+\subsection{Use of AI}
+Correction of some bugs, minor text corrections, clarifications and explanations.
+
 
 \end{document}
