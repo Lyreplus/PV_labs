@@ -134,6 +134,16 @@ module tb_simple_cache;
 
     endgroup
 
+    covergroup cache_cov_reset @(posedge clk);
+        option.per_instance = 1;
+        option.name = "Coverage for simple_cache - reset behavior";
+        
+        reset_cp: coverpoint dut.reset {
+            bins reset_active = {1'b1};
+            bins reset_inactive = {1'b0};
+        }
+    endgroup
+
     // miss on invalid line
     property miss_on_invalid;
         @(posedge clk) disable iff (reset) (read && !dut.valid_array[dut.index]) |-> (hit == 0);
@@ -148,5 +158,6 @@ module tb_simple_cache;
     cover property (hit_on_valid);
 
     cache_cov cov = new();
+    cache_cov_reset cov_reset = new();
 
 endmodule
