@@ -13,6 +13,12 @@ module tb_simple_cache;
     logic [DATA_WIDTH-1:0] data_out;
     logic hit;
 
+    logic read_prev, write_prev;
+    logic valid_accessed;
+
+    // needed for coverage
+    assign valid_accessed = dut.valid_array[dut.index];
+
     // Instantiate DUT
     simple_cache dut (
         .clk(clk), .reset(reset),
@@ -46,26 +52,38 @@ module tb_simple_cache;
 
         // ADD ADDITIONAL STIMULUS AS NEEDED HERE
 
+
         #50
         $display("TEST FINISHED");
         $finish;
     end
 
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            read_prev  <= 0;
+            write_prev <= 0;
+        end else begin
+            read_prev  <= read;
+            write_prev <= write;
+        end
+    end
+
     // ADD COVERAGE STATEMENTS HERE
 
-    covergroup cache_cov @(posedge clk);
+    covergroup cache_cov @(posedge clk iff !reset);
         option.per_instance = 1;
         option.name = "Coverage for simple_cache";
 
         tag_bin: coverpoint dut.tag {
-            bins tag = {[ADDR_WIDTH-1 -: TAG_WIDTH]};
+            bins tag = {[dut.TAG_WIDTH-1:0]};
+        } 
 
-        index_bin: coverpoint dut.index{
-            bins index = {[OFFSET_WIDTH+INDEX_WIDTH-1 -: INDEX_WIDTH]};
+        index_bin: coverpoint dut.index {
+            bins index = {[dut.INDEX_WIDTH-1:0]};
         }
 
         offset_bin: coverpoint dut.offset {
-            bins offset = {[OFFSET_WIDTH-1 -: OFFSET_WIDTH]};
+            bins offset = {[dut.OFFSET_WIDTH-1:0]};
         }
 
         coverpoint hit {
@@ -91,6 +109,27 @@ module tb_simple_cache;
             bins write_only = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b1};
             bins illegal    = binsof(read) intersect {1'b1} && binsof(write) intersect {1'b1};
             bins nothing    = binsof(read) intersect {1'b0} && binsof(write) intersect {1'b0};
+        }
+
+        hit_miss_cross: cross hit, valid_accessed {
+            bins hit_valid   = binsof(hit) intersect {1'b1} && binsof(valid_accessed) intersect {1'b1};
+            bins miss_valid  = binsof(hit) intersect {1'b0} && binsof(valid_accessed) intersect {1'b1};
+            bins hit_invalid = binsof(hit) intersect {1'b1} && binsof(valid_accessed) intersect {1'b0};
+            bins miss_invalid= binsof(hit) intersect {1'b0} && binsof(valid_accessed) intersect {1'b0};
+        }
+
+        read_write_prev_hit: cross read_prev, write_prev, hit {
+            bins read_hit       = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
+            bins read_miss      = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            
+            bins write_hit      = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins write_miss     = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            
+            bins collision_hit  = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins collision_miss = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            
+            bins idle           = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            illegal_bins fake   = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
         }
 
     endgroup
