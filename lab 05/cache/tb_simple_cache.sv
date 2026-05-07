@@ -52,6 +52,7 @@ module tb_simple_cache;
     end
 
     // ADD COVERAGE STATEMENTS HERE
+
     covergroup cache_cov @(posedge clk);
         option.per_instance = 1;
         option.name = "Coverage for simple_cache";
@@ -75,6 +76,11 @@ module tb_simple_cache;
         validity: coverpoint dut.valid_array[dut.index] {
             bins valid_bin = {1'b1};
             bins invalid_bin = {1'b0};
+        }
+
+        reset: coverpoint dut.reset {
+            bins reset_active = {1'b1};
+            bins reset_inactive = {1'b0};
         }
 
         coverpoint write;
