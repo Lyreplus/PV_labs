@@ -1,0 +1,306 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage{tabularray}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{minted}
+
+\usepackage{tgpagella}
+
+
+\title{Processor Verification \\Lab 7 - UVM Testbench}
+\author{Lorenzo Pattaro Zonta}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\section{Design Under Test}
+The design under test (DUT) is a simple memory controller that interfaces with two masters: a CPU and a DMA. The controller manages read and write requests from both masters and arbitrates access to a shared memory. The memory is organized as an array of 256 words, each 32 bits wide. The controller receives address, data, and control signals from both masters and generates appropriate responses based on the requests. The controller also handles reset and clock signals to ensure proper synchronization of operations.
+
+\begin{table}[H]
+\centering
+    \begin{tabular}{|l|l|l|p{8cm}|}
+      \hline
+      \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
+      \hline
+      addr & Input & 8 & Base address of transaction (word address) \\
+      \hline
+      wdata & Input & 32 & Write data (valid when we=1) \\
+      \hline
+      rdata & Output & 32 & Read data (valid when we=0) \\
+      \hline
+      we & Input & 1 & Write enable (1=write, 0=read) \\
+      \hline
+      req & Input & 1 & Request valid \\
+      \hline
+      gnt & Output & 1 & Master has been granted, request to be processed \\
+      \hline
+    \end{tabular}
+    \caption{Memory Controller I/O Interface Signals}
+\end{table}
+
+\subsection{Behavioral description}
+
+The memory controller implements a dual-master arbitration scheme with fixed priority. The controller manages concurrent access to a shared 256-word × 32-bit memory from two independent masters: Master 0 (CPU) and Master 1 (DMA).
+
+\subsubsection{Arbitration Logic}
+
+The controller uses a fixed-priority arbitration scheme:
+
+\begin{itemize}
+    \item \textbf{Single Master Valid:} When only one master issues a request (\texttt{req=1}), that master is serviced immediately by asserting its corresponding grant signal (\texttt{gnt=1}).
+    
+    \item \textbf{Both Masters Valid:} When both masters issue requests simultaneously, Master 0 (CPU) has priority and is serviced. Master 0's \texttt{gnt} signal is asserted while Master 1's \texttt{gnt} remains deasserted. Master 1 must wait until Master 0 deasserts its request before being granted access.
+    
+    \item \textbf{No Master Valid:} When no master issues a request, the controller remains idle with both grant signals deasserted.
+\end{itemize}
+
+\subsubsection{Read and Write Operations}
+
+\textbf{Read Operations (we=0):}
+\begin{itemize}
+    \item Reads are combinational with zero clock cycle latency
+    \item Once address and grant signals are stable, read data is immediately available on the \texttt{rdata} output
+    \item No memory update occurs
+\end{itemize}
+
+\textbf{Write Operations (we=1):}
+\begin{itemize}
+    \item Writes are synchronous, occurring on the rising edge of the clock
+    \item Memory update happens on the next clock cycle when both \texttt{gnt} and \texttt{we} are asserted
+    \item Data at the specified address (\texttt{addr}) is updated with the value on \texttt{wdata}
+    \item One clock cycle latency from request to memory update
+\end{itemize}
+
+\subsubsection{Memory Organization}
+
+The internal memory consists of $2^{8} = 256$ words, each 32 bits wide, providing $8 \times 256 = 2048$ bits of total storage.
+
+%List what changes you plan to make to convert one TB into the other.
+\section{Testbench Conversion to UVM}
+
+The System Verilog testbench will be rewrite following the UVM (Universal Verification Methodology) standard, decomposing the single module into reusable, hierarchical components. The conversion maintains the original test stimulus and checking logic while reorganizing them into a modular and standardized framework.
+
+\subsection{Overview of Changes}
+
+The primary transformation involves converting procedural tasks and mailbox-based communication into UVM classes and TLM (Transaction-Level Modeling) interfaces. The key changes are:
+
+\begin{itemize}
+    \item \textbf{Transaction Definition:} The original packed struct \texttt{trx\_t} is now encapsulated in the \texttt{controller\_transaction} UVM class, extending \texttt{uvm\_sequence\_item}. This class includes proper UVM methods (\texttt{copy()}, \texttt{compare()}, \texttt{convert2string()}) for transaction handling.
+    
+    \item \textbf{Generator → Sequencer + Sequence:} The procedural \texttt{tb\_generator()} task is replaced by a \texttt{controller\_sequencer} (manages transaction flow) and \texttt{controller\_sequence} (generates test scenarios). This decouples stimulus generation from application.
+    
+    \item \textbf{Driver:} The \texttt{tb\_driver()} task becomes the \texttt{controller\_driver} class, which responds to the sequencer via the standard UVM pull interface, applying transactions to DUT ports.
+    
+    \item \textbf{Monitor:} The \texttt{tb\_monitor()} task is converted to the \texttt{controller\_monitor} class, which samples DUT signals and broadcasts transaction events via TLM analysis ports.
+    
+    \item \textbf{Checker → Scoreboard:} The \texttt{tb\_checker()} task is restructured as the \texttt{controller\_scoreboard}, which receives predicted and actual transactions via TLM ports and maintains the golden memory model.
+    
+    \item \textbf{Agent:} A new \texttt{controller\_agent} class encapsulates the driver, sequencer, and monitor, providing a cohesive interface parallel to each master interface.
+    
+    \item \textbf{Environment:} The \texttt{controller\_env} class groups agents and the scoreboard, managing the overall testbench infrastructure.
+    
+    \item \textbf{Test:} The original \texttt{initial} block is replaced by \texttt{controller\_test}, which orchestrates the test flow through UVM phases (\texttt{build\_phase}, \texttt{connect\_phase}, \texttt{run\_phase}).
+\end{itemize}
+
+\subsection{Component Details}
+
+\subsubsection{controller\_transaction}
+
+Encapsulates a dual-master transaction with the following properties:
+\begin{itemize}
+    \item Master 0 and Master 1 fields: address, write data, write enable and request flags
+    \item Randomizable delay between transactions
+    \item Constraint limiting delay to 0-8 cycles
+    \item String representation for logging via \texttt{convert2string()}
+\end{itemize}
+
+\subsubsection{controller\_sequencer}
+
+A parametrized sequencer managing the flow of \texttt{controller\_transaction} objects from sequences to the driver. Implements the standard UVM pull interface.
+
+\subsubsection{controller\_driver}
+
+Pulls transactions from the sequencer and applies them to the DUT:
+\begin{itemize}
+    \item Drives request signals (\texttt{req0}, \texttt{req1})
+    \item Applies address and data based on transaction fields
+    \item Handles clock-based handshaking with the DUT
+    \item Respects grant signals (\texttt{gnt0}, \texttt{gnt1})
+\end{itemize}
+
+\subsubsection{controller\_monitor}
+
+Passively observes DUT transactions:
+\begin{itemize}
+    \item Samples grant and control signals
+    \item Captures read and write operations
+    \item Creates transaction objects representing observed bus activity
+    \item Broadcasts via TLM analysis port to scoreboard and functional coverage
+\end{itemize}
+
+\subsubsection{controller\_scoreboard}
+
+Maintains a golden memory model and validates correctness:
+\begin{itemize}
+    \item Receives predicted transactions from driver (via sequencer)
+    \item Receives observed transactions from monitor
+    \item Compares actual versus predicted reads
+    \item Reports failures and accumulates statistics
+\end{itemize}
+
+\subsubsection{controller\_agent}
+
+Hierarchical component grouping verification components:
+\begin{itemize}
+    \item Contains: driver, sequencer, monitor
+    \item Provides configuration options (active vs. passive)
+    \item Handles instantiation and connection of sub-components
+\end{itemize}
+
+\subsubsection{controller\_env}
+
+Top-level environment containing:
+\begin{itemize}
+    \item One or more \texttt{controller\_agent} instances (one per master, or combined)
+    \item \texttt{controller\_scoreboard} for result checking
+    \item Manages build and connect phases
+\end{itemize}
+
+\subsubsection{controller\_sequence}
+
+Generates sequences of transactions with various test scenarios:
+\begin{itemize}
+    \item Deterministic writes and reads, specific to the master
+    \item DMA access patterns
+    \item Contention scenarios (both masters requesting simultaneously)
+    \item Randomized mixed operations
+\end{itemize}
+
+\subsubsection{controller\_test}
+
+Orchestrates the test execution:
+\begin{itemize}
+    \item Configures environment and test parameters
+    \item Instantiates sequences
+    \item Controls test phases and termination
+\end{itemize}
+
+
+\section{UVM Architecture Diagram}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{uvm_architecture.png}
+    \caption{UVM Testbench Architecture for Memory Controller Verification}
+\end{figure}
+
+\section{UVM Code}
+\begin{minted}[frame=single,framesep=10pt]{SystemVerilog}
+  `timescale 1ns/1ps
+`include "uvm_macros.svh"
+
+package controller_pkg;
+    import uvm_pkg::*;
+
+    parameter ADDR_WIDTH = 8;
+    parameter DATA_WIDTH = 32;
+
+    class controller_transaction extends uvm_sequence_item;
+    `uvm_object_utils(controller_transaction)
+
+        // Master 0
+        random logic [ADDR_WIDTH-1:0]   addr0;
+        random logic [DATA_WIDTH-1:0]   wdata0;
+        random logic                    is_write0;
+        random logic                    use_m0;
+
+        random logic [ADDR_WIDTH-1:0]   addr1;
+        random logic [DATA_WIDTH-1:0]   wdata1;
+        random logic                    is_write1;
+        random logic                    use_m1;
+
+        random int delay_cycles;
+        random bit is_end;
+
+        constraint valid_delay { delay_cycles inside {[0:8]}; }
+
+        function new(string name = "controller_transaction");
+            super.new(name);
+        endfunction
+
+        function string convert2string();
+        return $sformatf("M0: use=%b addr=%0d we=%b | M1: use=%b addr=%0d we=%b | delay=%0d",
+                         use_m0, addr0, is_write0, use_m1, addr1, is_write1, delay_cycles);
+        endfunction
+
+    endclass : controller_transaction
+
+    class controller_sequencer extends uvm_sequencer #(controller_transaction);
+    `uvm_object_utils(controller_sequencer)
+
+        function new(string name = "controller_sequencer");
+            super.new(name);
+        endfunction
+
+    endclass
+
+    class controller_driver extends uvm_driver #(controller_transaction);
+    `uvm_component_utils(controller_driver)
+    endclass : controller_driver
+
+    class controller_monitor extends uvm_monitor;
+    `uvm_component_utils(controller_monitor)
+    endclass : controller_monitor
+
+    class controller_agent extends uvm_agent;
+    `uvm_component_utils(controller_agent)
+    endclass : controller_agent
+
+    class controller_scoreboard extends uvm_scoreboard;
+    `uvm_component_utils(controller_scoreboard)
+    endclass : controller_scoreboard
+
+    class controller_en extends uvm_env;
+    `uvm_component_utils(controller_env)
+    endclass
+
+    class controller_sequence extends uvm_sequence #(controller_transaction);
+    `uvm_object_utils(controller_sequence)
+    endclass : controller_sequence
+
+    class controller_test extends uvm_test;
+    `uvm_component_utils(controller_test)
+    endclass: controller_test
+
+endpackage : controller_pkg
+
+module tb_uvm_simple_mem_ctrl;
+    import uvm_pkg::*;
+    import controller_pkg::*;
+    // Parameters must match DUT
+    parameter ADDR_WIDTH = 8;
+    parameter DATA_WIDTH = 32;
+endmodule : tb_uvm_simple_mem_ctrl
+\end{minted}
+
+\section{Conclusion}
+
+
+
+\newpage
+\section{Appendix}
+\subsection{Number of hours required}
+For the completion of this laboratory, it has been needed x hours. 
+\subsection{Appendix A}
+% \lstinputlisting[language=Bash, firstnumber=1]{script_questasim.sh}
+
+\end{document}
