@@ -50,16 +50,17 @@ module tb_simple_cache;
             end
         end
 
-        @(posedge clk);
-        read = 1; write = 1; hit = 1'b1; 
-        
-        @(posedge clk);
-        read = 1; write = 1; hit = 1'b1;
-        
-        #20 reset = 1;
-
         // ADD ADDITIONAL STIMULUS AS NEEDED HERE
 
+        @(posedge clk);
+        reset = 1; 
+        #20 reset = 0;
+
+        @(posedge clk); //test a read miss on an invalid line
+        read = 1; write = 1; addr = 8'hA5; //
+
+        @(posedge clk);
+        read = 1; write = 1; addr = 8'hA5; //test a read hit on a valid line
 
         #50
         $display("TEST FINISHED");
