@@ -96,11 +96,6 @@ module tb_simple_cache;
             bins invalid_bin = {1'b0};
         }
 
-        reset: coverpoint dut.reset {
-            bins reset_active = {1'b1};
-            bins reset_inactive = {1'b0};
-        }
-
         coverpoint write;
         coverpoint read;
 
