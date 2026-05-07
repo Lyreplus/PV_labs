@@ -50,6 +50,14 @@ module tb_simple_cache;
             end
         end
 
+        @(posedge clk);
+        read = 1; write = 1; hit = 1'b1; 
+        
+        @(posedge clk);
+        read = 1; write = 1; hit = 1'b1;
+        
+        #20 reset = 1;
+
         // ADD ADDITIONAL STIMULUS AS NEEDED HERE
 
 
@@ -114,17 +122,14 @@ module tb_simple_cache;
         }
 
         read_write_prev_hit: cross read_prev, write_prev, hit {
-            bins read_hit       = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
-            bins read_miss      = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
-            
-            bins write_hit      = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
-            bins write_miss     = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
-            
-            bins collision_hit  = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
-            bins collision_miss = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
-            
-            bins idle           = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
-            illegal_bins fake   = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
+            bins read_nowrite_hit       = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
+            bins read_nowrite_miss      = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            bins noread_write_hit      = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins noread_write_miss     = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            bins read_write_hit  = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b1};
+            bins read_write_miss = binsof(read_prev) intersect {1'b1} && binsof(write_prev) intersect {1'b1} && binsof(hit) intersect {1'b0};
+            bins nothing                = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b0};
+            illegal_bins not_possible   = binsof(read_prev) intersect {1'b0} && binsof(write_prev) intersect {1'b0} && binsof(hit) intersect {1'b1};
         }
 
     endgroup
