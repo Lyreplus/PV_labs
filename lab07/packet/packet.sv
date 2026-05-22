@@ -56,19 +56,19 @@ module packet (
 `ifdef FORMAL
     initial assume(reset);
 
-    assert property (@(posedge clk) if(reset) assert(state == IDLE));
+    assert property (@(posedge clk) if(reset) state == IDLE);
     assert property (@(posedge clk) if(reset) assume(chk_ok == 1'b0 && chk_fail == 1'b0));
     
     always @(posedge clk) disable iff (reset) if(state == CHECKSUM) assume(chk_ok != chk_fail);
 
     //ALWAYS A STATE
 
-    assert property (@(posedge clk) disable iff (reset) assert(  state == IDLE       ||
+    assert property (@(posedge clk) disable iff (reset)  state == IDLE       ||
                                                                 state == HEADER     ||
                                                                 state == PAYLOAD    ||
                                                                 state == CHECKSUM   ||
                                                                 state == DONE
-                                                        ));
+                                                        );
 
     // CORRECT STATE
     assert property (@(posedge clk) disable iff (reset) valid_pkt |-> (state == DONE));
