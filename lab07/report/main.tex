@@ -1,0 +1,148 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage{tabularray}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{minted}
+
+\usepackage{tgpagella}
+
+
+\title{Processor Verification \\Lab 7 - Formal Verification}
+\author{Lorenzo Pattaro Zonta}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\section{Design Under Test}
+
+The packet module implements a finite state machine (FSM) that models the reception of a packet through successive stages: header, payload, checksum, and completion. The FSM transitions through multiple states as indicated by external control signals, and generates status flags (valid\_pkt, error\_pkt) to indicate whether a packet was successfully received or failed due to checksum errors.
+
+\begin{table}[H]
+\centering
+    \begin{tabular}{|l|l|l|p{6cm}|}
+      \hline
+      \textbf{Signal} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\
+      \hline
+      clk & Input & 1 & System clock. All state transitions occur on the rising edge. \\
+      \hline
+      reset & Input & 1 & Synchronous reset. Forces the FSM back to IDLE and clears outputs. \\
+      \hline
+      start\_pkt & Input & 1 & Initiates packet reception. Valid only in IDLE. \\
+      \hline
+      hdr\_done & Input & 1 & Signals completion of header processing. Valid only in HEADER. \\
+      \hline
+      payload\_done & Input & 1 & Signals completion of payload processing. Valid only in PAYLOAD. \\
+      \hline
+      chk\_ok & Input & 1 & Indicates checksum verification passed. Valid only in CHECKSUM. \\
+      \hline
+      chk\_fail & Input & 1 & Indicates checksum verification failed. Valid only in CHECKSUM. \\
+      \hline
+      abort & Input & 1 & Aborts packet reception at any stage, returning FSM to IDLE. \\
+      \hline
+      valid\_pkt & Output & 1 & Pulses high when packet successfully received (CHECKSUM to DONE). \\
+      \hline
+      error\_pkt & Output & 1 & Pulses high when checksum fails (CHECKSUM to IDLE). \\
+      \hline
+      state & Output & 3 & Encoded FSM state (0-4). \\
+      \hline
+    \end{tabular}
+    \caption{Packet Module I/O Interface Signals}
+\end{table}
+
+\subsection{State Encoding}
+
+The FSM implements five distinct states, each representing a stage in packet reception:
+\begin{itemize}
+    \item \textbf{IDLE (0)}: Waiting for packet start.
+    \item \textbf{HEADER (1)}: Processing header.
+    \item \textbf{PAYLOAD (2)}: Processing payload.
+    \item \textbf{CHECKSUM (3)}: Verifying checksum.
+    \item \textbf{DONE (4)}: Packet reception complete; automatically returns to IDLE.
+\end{itemize}
+
+\subsection{Behavioral description}
+
+The packet reception FSM operates according to the following behavioral rules:
+
+\begin{enumerate}
+    \item On reset assertion, the FSM enters the IDLE state and all output signals are cleared.
+    
+    \item In the IDLE state, assertion of the \texttt{start\_pkt} signal causes a transition to the HEADER state.
+    
+    \item In the HEADER state, assertion of the \texttt{hdr\_done} signal causes a transition to the PAYLOAD state.
+    
+    \item In the PAYLOAD state, assertion of the \texttt{payload\_done} signal causes a transition to the CHECKSUM state.
+    
+    \item In the CHECKSUM state, two conditions are possible:
+    \begin{itemize}
+        \item If \texttt{chk\_ok} is asserted, the FSM transitions to the DONE state and the \texttt{valid\_pkt} output pulses high.
+        \item If \texttt{chk\_fail} is asserted, the FSM returns to the IDLE state and the \texttt{error\_pkt} output pulses high.
+    \end{itemize}
+    
+    \item In the DONE state, the FSM automatically transitions back to IDLE on the next clock cycle.
+    
+    \item At any stage in the FSM, assertion of the \texttt{abort} signal forces the FSM back to IDLE with all output signals cleared.
+\end{enumerate}
+
+\subsection{Finite State Machine Graph}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{fsm.png}
+    \caption{Finite State Machine Graph for Packet Reception}
+\end{figure}
+\newpage
+\subsection{Formal specification}
+
+\begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
+    initial assume(reset);
+
+    assert property @(posedge clk) if(reset) assert(state == IDLE);
+    assert property @(posedge clk) if(reset) assume(chk_ok == 1'b0 && chk_fail == 1'b0);
+    
+    always @(posedge clk) disable iff (reset) if(state == CHECKSUM) assume(chk_ok != chk_fail);
+
+    //ALWAYS A STATE
+
+    assert property @(posedge clk) disable iff (reset) assert(  state == IDLE       ||
+                                                                state == HEADER     ||
+                                                                state == PAYLOAD    ||
+                                                                state == CHECKSUM   ||
+                                                                state == DONE
+                                                        );
+
+    // CORRECT STATE
+    assert property @(posedge clk) disable iff (reset) valid_pkt |-> (state == DONE);
+    assert property @(posedge clk) disable iff (reset) error_pkt |-> (state == IDLE);
+
+    // STATE TRANSITIONS
+    assert property @(posedge clk) disable iff (reset) start_pkt && (state == IDLE) && !abort |=> (state == HEADER);
+    assert property @(posedge clk) disable iff (reset) hdr_done && (state == HEADER) && !abort |=> (state == PAYLOAD);
+    assert property @(posedge clk) disable iff (reset) payload_done && (state == PAYLOAD) && !abort |=> (state == CHECKSUM);
+    assert property @(posedge clk) disable iff (reset) chk_ok && (state == CHECKSUM) && !abort |=> (state == DONE);
+    assert property @(posedge clk) disable iff (reset) chk_fail && (state == CHECKSUM) && !abort |=> (state == IDLE);
+    assert property @(posedge clk) disable iff (reset) (state == DONE) && !abort |=> (state == IDLE);
+    assert property @(posedge clk) disable iff (reset) abort |=> (state == IDLE);
+\end{minted}
+
+
+\section{Conclusion}
+
+
+\newpage
+\section{Appendix}
+\subsection{Number of hours required}
+For the completion of this laboratory, it has been needed x hours. 
+\subsection{Appendix A}
+% \lstinputlisting[language=Bash, firstnumber=1]{script_questasim.sh}
+
+\end{document}

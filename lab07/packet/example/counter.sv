@@ -24,7 +24,7 @@ module counter(
     initial assume(reset);
 
     // After reset, count must be zero
-    always @(posedge clk) if (reset) assume(count == 0);
+    always @(posedge clk) if (reset) assert(count == 0);
 
     // Track if we are past the first cycle
     logic past_valid;
