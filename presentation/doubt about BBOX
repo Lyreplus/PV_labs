@@ -1,0 +1,53 @@
+ In page 4 I read For instance, as shown in Fig. 5, in a multiplier, SVA captures
+
+input signals to trace the source of computation, performs
+
+a simplified symbolic multiplication, and uses the result as
+
+the output to ensure consistency between symbolic and actual
+
+computations.
+
+
+Isn't it a way to make verification with this framework less precise, by not doing the exact same computation?
+
+That is a fantastic question. It feels entirely counterintuitive—why would you use a "simplified" operation when your entire goal is to strictly verify a processor?
+
+The short answer is: It is a necessary compromise to prevent the formal verification tool from completely choking, and it actually increases the overall precision of the test.
+
+Here is the breakdown of why this framework makes this trade-off:
+The Problem: Multipliers Break Formal Tools
+
+Formal verification tools are incredibly precise, but they suffer from a massive limitation called state-space explosion.  
+
+If you ask a formal tool to mathematically prove every single possible state of a complex, computationally intensive hardware module like a multiplier, the tool will run out of memory or take an eternity to compute.  
+
+Because EDA (Electronic Design Automation) tools know they can't handle this complexity, they often default to treating these modules as a Black Box (BBOX) to avoid overloading.  
+The Alternative is Worse: Random Garbage
+
+When a multiplier is treated as a strict BBOX, the formal tool essentially gives up on understanding it. Because it doesn't know what is inside, the tool treats the outputs of the BBOX as arbitrary "free nets".  
+
+This means that if you input 2×3 into the BBOX multiplier, the formal tool might output 999 because it is just guessing. This leads to:
+
+    Arbitrary outputs and unverifiable conditions.  
+
+    False alarms, because the rest of the processor reacts to the impossible garbage data coming out of the multiplier.  
+
+    Verification gaps, because the internal logic isn't properly driving the outputs, lowering simulation coverage.  
+
+The Solution: "Good Enough" Consistency
+
+To fix the BBOX problem, the authors introduce a Multiplier Abstraction Model.  
+
+Instead of letting the BBOX spit out random garbage, they use SystemVerilog Assertions (SVA) to do a "simplified symbolic multiplication". By tracing the input signals and performing an approximation, they force the BBOX to output a consistent result.  
+Why this doesn't ruin the verification precision
+
+You are absolutely correct that the formal tool is no longer doing the exact multiplier computation. However, you have to look at the goal of this specific framework (FGTSO):
+
+    The Goal is System Coverage: FGTSO is trying to generate instruction sequences to find hidden bugs in the control flow of the processor (like cache misses, branch predictions, pipeline stalls).  
+
+    Isolating the Problem: The multiplier's exact mathematical perfection is usually tested in a completely separate, isolated environment.
+
+    Unblocking the Tool: By providing a simplified but logical symbolic output, the formal tool can successfully pass through the multiplier and continue verifying the rest of the processor's intricate control logic without throwing false errors.  
+
+In short, replacing the multiplier with a simplified abstract model prevents the tool from failing and, according to the authors, actually enhances verification accuracy compared to the standard BBOX method.  

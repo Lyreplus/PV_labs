@@ -40,7 +40,6 @@ The design under test (DUT) is a simple FIFO module with the following interface
       rd\_data & output & 8 bits & Data read from the FIFO \\
       empty & output & 1 bit & Indicates if the FIFO is empty \\
       full & output & 1 bit & Indicates if the FIFO is full \\
-      count & output & 4 bits & Number of elements currently in the FIFO \\
       \hline
     \end{tabular}
 \end{table}
@@ -115,7 +114,8 @@ The following stimulus has been added to the testbench to cover the missing bins
 
 \end{minted}
 The first stimulus covers the bins \texttt{went\_empty}, \texttt{empty\_bin} and the directive \texttt{cover property \\(becomes\_empty\_after\_read)} because the dut is emptied and the empty flag is set when the last value is read and the FIFO becomes empty.
-The second stimulus covers the \texttt{went\_full} and \texttt{full\_bin} bins because we fully populate the FIFO, with 16 writes, and the last stimulus covers the \texttt{illegal} bin.ì, as we try to write and read at the same time, which is not allowed by the design.
+The second stimulus covers the \texttt{went\_full} and \texttt{full\_bin} bins because we fully populate the FIFO, with 16 writes, and the last stimulus covers the \texttt{illegal} bin because we assert both \texttt{wr\_en} and \texttt{rd\_en} at the same time, which causes the FIFO to ignore both operations (neither write nor read is performed).
+
 \section*{Design Under Test - Direct Mapped Cache}
 The design under test (DUT) is a direct mapped cache module with the following parameteres and interface:
 
@@ -163,7 +163,7 @@ The addess is split into three fields:
 \begin{itemize}
   \item Tag (addr[ADDR\_WIDTH-1 -: TAG\_WIDTH]): the most significant bits of the address, used to identify the block of memory stored in the cache line.
   \item Index (addr[OFFSET\_WIDTH+INDEX\_WIDTH-1 -: INDEX\_WIDTH]): the middle bits of the address, used to select the cache line (set) being accessed.
-  \item Offset (addr[OFFSET\_WIDTH+INDEX\_WIDTH-1 -: INDEX\_WIDTH]): the least significant bits of the address, used to select the specific word within the cache line.
+  \item Offset (addr[OFFSET\_WIDTH-1 -: OFFSET\_WIDTH]): the least significant bits of the address, used to select the specific word within the cache line.
 \end{itemize}
 
 \subsection*{Behavioral Description}
