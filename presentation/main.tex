@@ -6,7 +6,7 @@
 
 % Theme options — combine any of these in a single \usetheme call:
    \usetheme[
-%     pattern=triangle,
+    pattern=squares,
 %     color=nudarkblue,
 %     font=poppins,
     numbering=number,
@@ -65,24 +65,295 @@
 \end{frame}
 
 \begin{frame}{Introduction}
-Verification process faces significant challenges.
-    
+Verification process faces significant challenges:
+        \begin{itemize}
+        \item<2-> \# of test sequences grows exponentially with \# of test cases.
+        \item<3-> Executing all possible sequences is often infeasible % due to time and resource constraints.
+        \item<4-> Identification of the most effective test sequences: crucial for efficient testing.
+    \end{itemize}
 \end{frame}
 
 \begin{frame}[plain]
     \tableofcontents
 \end{frame}
 
-\section{Introduction}
+\section{Current Verification Approaches}
 
-\begin{frame}
-
+\begin{frame}{Current Verification Approaches}
+    \textbf{Formal verification}:
     \begin{itemize}
-        \item The number of test sequences grows exponentially with the number of test cases.
-        \item Executing all possible sequences is often infeasible due to time and resource constraints.
-        \item Identifying the most effective test sequences is crucial for efficient testing.
+        \item<2-> Comprehensive design exploration.
+        \item<3-> Encounters state space explosion problem for large scale designs. 
+    \end{itemize}
+    \textbf{Simulation-based verification}:
+    \begin{itemize}
+        \item<4-> High scalability and applicability.
+        \item<5-> Effectiveness rely on well-designed constraints.
+        \item<6-> Biased constraints: miss critical scenarios.
+        \item<7-> Strict constraints: increase debugging complexity.
     \end{itemize}
 \end{frame}
+
+\begin{frame}{Formal Guided Test Sequence Optimization}
+    \begin{itemize}
+% ● Enhance coverage & verification efficiency
+% ● Leverages simulation scalability and formal verification precision to target critical
+% conditions, reducing simulation overhead and improve coverage
+% ● Challenges:
+% ○ Resolve false alarms from formal simulation discrepancies
+% ○ Address BBOX constraints
+% ● Integrate simulation and formal verification
+% ● Introduce abstract models to overcome limitations of BBOX
+        \item<1-> Enhance coverage and verification efficiency.
+        \item<2-> Leverage simulation scalability and formal verification precision to target critical conditions %, reducing simulation overhead and improving coverage.
+        \item<3-> Challenges:
+        \begin{itemize}
+            \item<4-> Resolve false alarms from formal simulation discrepancies.
+            \item<4-> Address BBOX constraints.
+        \end{itemize}
+        \item<5-> Integrate simulation and formal verification.
+        \item<6-> Introduce abstract models to overcome limitations of BBOX.
+    \end{itemize}
+\end{frame}
+
+% Both these approaches lack methodologies to ensure comprehensive coverage of critical design aspects, as in complex control flows, where formal guidance is essential
+
+\section{Related Works}
+
+\begin{frame}{Related Works}
+RISC-V Torture Test:
+    \begin{itemize}
+        \item Generate random instruction sequences to achieve faster coverage closure
+        \item Lacks structured verification guidance: limited effectiveness in extreme corner cases
+    \end{itemize}
+RISCV-DV:
+    \begin{itemize}
+        \item Support CRV (constraint random verification) and RISC V ISA features
+        \item Reliance on randomness makes it difficult to cover boundary conditions
+    \end{itemize}
+Fuzzing tools: cannot guarantee coverage of all possible scenarios.
+\end{frame}
+
+\begin{frame}{Problems \& Issues}
+\begin{itemize}
+    \item False alarms due to environmental discrepancies.
+    \item BBOX issues by excessive complexity or large storage modules.
+\end{itemize}
+\end{frame}
+
+\section{FGTSO Framework}
+
+\begin{frame}{Overall architecture}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\textwidth]{FGTSO_arch.png}
+        \caption{FGTSO Framework Architecture}
+        \label{fig:architecture}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Overview}
+    \begin{enumerate}
+        \item<1-> Coverage Hole Selection
+        \item<2-> Environment Consistency Check
+        \item<3-> Formal Cover Property Generation
+        \item<4-> Targeted Instruction Sequence Generation
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{FGTSO Workflow}   
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.4\textwidth]{workflow.png}
+        \caption{FGTSO Workflow}
+        \label{fig:workflow}
+    \end{figure}
+
+\end{frame}
+
+
+\begin{frame}{FGTSO Workflow - Step 1}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\textwidth]{step1.png}
+        \caption{Step 1: Coverage Hole Selection}
+        \label{fig:step1}
+    \end{figure}
+
+\end{frame}
+
+\begin{frame}{FGTSO Workflow - Step 1}
+    % The strategy prioritizes addressing the most impactful coverage holes, by focusing on
+% the ones that affect verification efficiency. This accelerates the verification process.
+% The paper employs the MaxUncovd strategy that prioritizes selecting modules with
+% the lowest coverage, assuming that addressing the most uncovered areas yields the
+% greatest verification impact. MaxUncovd enhances the overall efficiency and ensures
+% comprehensive design verification.
+\begin{itemize}
+    \item<1-> Priority: addressing \textbf{most impactful coverage holes} % by focusing on the ones that affect verification efficiency, accelerating the verification process.
+    \item<2-> MaxUncovd strategy: prioritizes selecting modules with lowest coverage, assuming that addressing the most uncovered areas yields the greatest verification impact. % MaxUncovd enhances the overall efficiency and ensures comprehensive design verification.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\textwidth]{step2.png}
+        \caption{Step 2: Environment Consistency Check}
+        \label{fig:step2}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    % Misalignment detection between formal verification env with the simulation env is
+% performed to determine the consistency between the two envs. Formal verification
+% generates instruction sequences targeting specific coverage holes, executed in the
+% simulation. If the results from formal verification and simulation are inconsistent (fail
+% to cover intended coverage holes) it indicates a misalignment.
+    \begin{itemize}
+        \item<1-> Misalignment detection is performed to determine consistency.
+        \item<2-> Formal verification generates instruction sequences targeting specific coverage holes, executed in the simulation.
+        \item<3-> Results from formal verification and simulation are inconsistent (fail to cover intended coverage holes): \textbf{misalignment}.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    Three are the main causes of misalignment: PIs, BBOX and Insufficient RISCV-DV constraints.
+\begin{itemize}
+%     Primary inputs (any signal that originates outside the boundary of the
+% specific hardware module you are testing and flows into it, e.g. reset, clock,
+% interrupt request, rvalid signal [read valid] for AXI protocol). By writing
+% "assumptions," verification engineers tie these wildcards down to reality so
+% the formal tool only explores states that can actually happen.). PIs are treated
+% as free nets, allowing them to assume arbitrary values without constraints.
+% This can lead to incorrect coverage analysis, as generated cover traces may
+% fail to address coverage holes in simulation. Furthermore, unconstrained PIs
+% can result in misleading coverage estimation, especially when test scenarios
+% correspond to unreachable states by design (es AXI protocol). Formal
+% verification may fail to generate meaningful instruction patterns, leaving
+% coverage holes unresolved. Formal assumptions must be introduced to align
+% formal verification with realistic system behavior.
+    \item<1-> Primary Inputs (PIs) such as reset, clock, interrupt request, rvalid signal for AXI protocol. 
+    \begin{itemize}
+        \item<2-> Treated as free nets: assume arbitrary values without constraints.
+        \item<2-> Incorrect coverage analysis: generated cover traces may fail to address coverage holes.
+        \item<2-> Unconstrained PIs can result in misleading coverage estimation. E.g.:  test scenarios correspond to unreachable states by design (AXI protocol).
+        \item<2-> Formal verification may fail to generate meaningful instruction patterns.
+        \item<2-> Formal assumptions \textbf{must be introduced} to align formal verification with system behavior.
+    \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{BBOX (Black Box) Constraints}
+\begin{itemize}
+    \item<1-> \textbf{Definition}: In EDA tools, modules with high storage requirements or complex computational logic are treated as BBOX, causing false alarms and verification gaps.
+    \item<2-> BBOX modules cannot correctly drive outputs, they may become free nets, preventing module logic from driving its outputs.
+    \item<3-> \textbf{Solution}: Abstraction models preserve critical behavior while ensuring interaction with the system remains verifiable.
+    \item<4-> \textbf{High Storage Example}: Cache abstraction using SVA array to track indices. A single predefined tag replaces full tag tracking, reducing overhead while preserving cache functionality.
+    \item<5-> \textbf{Computation Example}: Symbolic computation approach using SVA to approximate multiplier outputs, capturing input signals and using simplified results for consistency verification.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Cache Abstraction Model}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\textwidth]{cache_abstraction.png}
+        \caption{Cache Abstraction Model}
+        \label{fig:cache-abstraction}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Insufficient RISCV-DV Constraints}
+\begin{itemize}
+    \item<1-> \textbf{Problem}: Formal verification may produce specialized memory data sequences that existing constraints in RISCV-DV cannot properly handle.
+    \item<2-> \textbf{Example}: Multi-level page table mechanism includes 1 GB, 2 MB, and 4 KB page tables, but original constraints only allow 1 GB page table access.
+    \item<3-> \textbf{Solution}: Modify constraints to apply them to addresses pointed to by 1 GB and 2 MB page table entries.
+    \item<4-> \textbf{Implementation}: Set X, W, and R bits to 0 to indicate that entries should point to the next level of the page table.
+    \item<5-> \textbf{Result}: Coverage holes related to multi-level page table accesses can now be successfully filled.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Step 3 \& 4: Formal Cover Property Generation}
+\begin{itemize}
+    \item<1-> \textbf{Overview}: Use formal cover properties to obtain cover traces and generate instruction sequences addressing target coverage holes.
+    \item<2-> \textbf{Property Definition}: Step automatically extracts coverage hole expression and applies it to predefined cover templates.
+    \item<3-> \textbf{Formal Execution}: Formal tool executes the cover property and derives the input patterns required to satisfy the condition.
+    \item<4-> \textbf{Cover Trace Generation}: Generates corresponding cover trace from the formal verification results.
+    \item<5-> \textbf{Sequence Extraction}: Extract the instruction sequence from the trace to effectively cover the coverage hole.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Coverage Holes Analysis}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.85\textwidth]{Coverage Holes.png}
+        \caption{Coverage Holes Identification}
+        \label{fig:coverage-holes}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Cache Abstraction Model Codification}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.85\textwidth]{cache abstraction code.png}
+        \caption{SVA Implementation of Cache Abstraction}
+        \label{fig:cache-code}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Formal Cover Property Example}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.85\textwidth]{cover_property.png}
+        \caption{Cover Property Definition}
+        \label{fig:cover-property}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Handling Coverage Challenges}
+\begin{itemize}
+    \item<1-> \textbf{Unreachable Coverage Holes}: First review whether constraints in both formal and simulation environments are overly restrictive.
+    \item<2-> \textbf{Waiving Unreachable Holes}: If constraints are appropriate and hole is unreachable, it is waived; information still provided to designers for debugging reference.
+    \item<3-> \textbf{Resource Exhaustion}: State space explosion is problematic for large-scale designs and limits formal tool capabilities.
+    \item<4-> \textbf{Decomposition Strategy}: Complex properties are decomposed into smaller sub-properties to collect their cover traces independently.
+    \item<5-> \textbf{Integration}: Integrate sub-property traces into comprehensive instruction sequence, ensuring manageable complexity while maintaining verification workability.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Final Outcome}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\textwidth]{results.png}
+        \caption{FGTSO Results: Coverage Achievement}
+        \label{fig:results}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Comparison with Other Frameworks}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\textwidth]{framework comparison.png}
+        \caption{FGTSO vs. Other Verification Approaches}
+        \label{fig:framework-comparison}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{100\% Coverage}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\textwidth]{FGTSO Coverage.png}
+        \caption{FGTSO: Achieving Complete Coverage}
+        \label{fig:fgtso-coverage}
+    \end{figure}
+\end{frame}
+
+
 
 \begin{frame}[fragile]{Background Patterns}
     The theme ships with 12 built-in background patterns. The easiest way to switch is via a theme option:
