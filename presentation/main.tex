@@ -1,4 +1,5 @@
 \documentclass[aspectratio=1610]{beamer}
+\usepackage{emoji}
 
 \title{Formal Guided Test Sequence Optimization}
 \date{Processor Verification - 29 May 2026}
@@ -109,11 +110,6 @@ Verification process faces significant challenges:
 % ● Introduce abstract models to overcome limitations of BBOX
         \item<1-> Enhance coverage and verification efficiency.
         \item<2-> Leverage simulation scalability and formal verification precision to target critical conditions %, reducing simulation overhead and improving coverage.
-        \item<3-> Challenges:
-        \begin{itemize}
-            \item<4-> Resolve false alarms from formal simulation discrepancies.
-            \item<4-> Address BBOX constraints.
-        \end{itemize}
         \item<5-> Integrate simulation and formal verification.
         \item<6-> Introduce abstract models to overcome limitations of BBOX.
     \end{itemize}
@@ -128,26 +124,28 @@ Verification process faces significant challenges:
 \begin{frame}{Related Works}
 RISC-V Torture Test:
     \begin{itemize}
-        \item<2-> Generate random instruction sequences to achieve faster coverage closure
-        \item<2-> Lacks structured verification guidance: limited effectiveness in extreme corner cases
+        \item<2-> \emoji{thumbs-up} Generate random instruction sequences to achieve faster coverage closure
+        \item<2-> \emoji{thumbs-down} Lacks structured verification guidance: limited effectiveness in extreme corner cases
     \end{itemize}
 RISCV-DV:
     \begin{itemize}
-        \item<3-> Support CRV (constraint random verification) and RISC V ISA features
-        \item<3-> Reliance on randomness makes it difficult to cover boundary conditions
+        \item<3-> \emoji{thumbs-up} Support CRV (constraint random verification) and RISC V ISA features
+        \item<3-> \emoji{thumbs-down} Reliance on randomness makes it difficult to cover boundary conditions
     \end{itemize}
 Fuzzing tools
 \begin{itemize}
-    \item<4->Cannot guarantee coverage of all possible scenarios.
+    \item<4-> \emoji{thumbs-down}Cannot guarantee coverage of all possible scenarios.
 \end{itemize}
 
 \end{frame}
 
 \begin{frame}{Problems \& Issues}
-\begin{itemize}
+\begin{alertblock}{Problems \& Issues}
+    \begin{itemize}
     \item False alarms due to environmental discrepancies.
     \item BBOX issues by excessive complexity or large storage modules.
 \end{itemize}
+\end{alertblock}
 \end{frame}
 
 \section{FGTSO Framework}
@@ -156,7 +154,7 @@ Fuzzing tools
 \begin{frame}{Overall architecture}
     \begin{figure}
         \centering
-        \includegraphics[width=0.8\textwidth]{FGTSO_arch.png}
+        \includegraphics[width=0.9\textwidth]{FGTSO_arch.png}
         \caption{FGTSO Framework Architecture}
         \label{fig:architecture}
     \end{figure}
@@ -199,10 +197,11 @@ Fuzzing tools
 % the lowest coverage, assuming that addressing the most uncovered areas yields the
 % greatest verification impact. MaxUncovd enhances the overall efficiency and ensures
 % comprehensive design verification.
-\begin{itemize}
-    \item<1-> Priority: addressing \textbf{most impactful coverage holes} % by focusing on the ones that affect verification efficiency, accelerating the verification process.
-    \item<2-> MaxUncovd strategy: prioritizes selecting modules with lowest coverage, assuming that addressing the most uncovered areas yields the greatest verification impact. % MaxUncovd enhances the overall efficiency and ensures comprehensive design verification.
-\end{itemize}
+ Priority: addressing \textbf{most impactful coverage holes} % by focusing on the ones that affect verification efficiency, accelerating the verification process.
+ \begin{pblock}{MaxUncovd strategy}
+     Prioritizes selecting modules with lowest coverage, assuming that addressing the most uncovered areas yields the greatest verification impact. % MaxUncovd enhances the overall efficiency and ensures comprehensive design verification.
+ \end{pblock}   
+
 
 \end{frame}
 
@@ -214,6 +213,16 @@ Fuzzing tools
         \label{fig:step2}
     \end{figure}
 \end{frame}
+
+\begin{frame}{Coverage Holes Analysis}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.85\textwidth]{Coverage Holes.png}
+        \caption{Coverage Holes Identification}
+        \label{fig:coverage-holes}
+    \end{figure}
+\end{frame}
+
 
 \begin{frame}{FGTSO Workflow - Step 2}
     % Misalignment detection between formal verification env with the simulation env is
@@ -256,11 +265,15 @@ Fuzzing tools
 \end{frame}
 
 \begin{frame}{FGTSO Workflow Misalignment - BBOX Constraints}
+
+\begin{alertblock}{Problem}
+    Modules with high storage requirements or complex computational logic cannot be fully modeled in formal verification, leading to BBOX constraints.
+\end{alertblock}
+E.g.: for a cache: huge amount of cache lines. Tracking each line is infeasible.
 \begin{itemize}
-    \item<2-> Modules with high storage requirements or complex computational logic: treated as BBOX.
-    \item<2-> BBOX may become free nets.
+    \item <2-> 
     \item<2-> \textbf{Solution}: Abstraction models preserve critical behavior while ensuring interaction with the system remains verifiable.
-    \item<2-> \textbf{High Storage Example}: Cache abstraction using SVA array to track indices. Predefined tag replaces full tag tracking
+    \item<2-> \textbf{High Storage Example}: Cache abstraction using SVA array to track indices. Predefined tag replaces full tag tracking.
     \item<2-> \textbf{Computation Example}: Symbolic computation approach using SVA.
 \end{itemize}
 
@@ -286,8 +299,11 @@ Fuzzing tools
 
 
 \begin{frame}{FGTSO Workflow Misalignment - RISCV-DV Constraints}
+    % create a box for the problem item, should be red
+    \begin{alertblock}{Problem}
+        Formal verification may produce sequences that RISCV-DV constraints cannot handle.
+    \end{alertblock}
 \begin{itemize}
-    \item<1-> \textbf{Problem}: Formal verification may produce sequences that RISCV-DV constraints cannot handle.
     \item<2-> \textbf{Example}: Multi-level page table mechanism includes 1 GB, 2 MB, and 4 KB page tables, but original constraints only allow 1 GB page table access.
     \item<3-> \textbf{Solution}: Modify constraints to apply them to addresses pointed to by 1 GB and 2 MB page table entries.
     \item<4-> \textbf{Implementation}: Set X, W, and R bits to 0 to indicate that entries should point to the next level of the page table.
@@ -307,14 +323,6 @@ Fuzzing tools
 
 \end{frame}
 
-\begin{frame}{Coverage Holes Analysis}
-    \begin{figure}
-        \centering
-        \includegraphics[width=0.85\textwidth]{Coverage Holes.png}
-        \caption{Coverage Holes Identification}
-        \label{fig:coverage-holes}
-    \end{figure}
-\end{frame}
 
 \begin{frame}{Formal Cover Property Example}
     \begin{figure}
@@ -350,7 +358,7 @@ Fuzzing tools
 \begin{frame}{Comparison with Other Frameworks}
     \begin{figure}
         \centering
-        \includegraphics[width=0.9\textwidth]{framework comparison.png}
+        \includegraphics[width=0.75\textwidth]{framework comparison.png}
         \caption{FGTSO vs. Other Verification Approaches}
         \label{fig:framework-comparison}
     \end{figure}
