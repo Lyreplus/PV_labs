@@ -11,3 +11,9 @@ work/
 **/*.gz
 **/*.fls
 **/*.fdb_latexmk
+**/*.sty
+**/*.nav
+**/*.out
+**/*.vrb
+**/*.toc
+**/*.snm
