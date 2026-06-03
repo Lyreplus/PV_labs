@@ -51,23 +51,23 @@ module packet (
     end
 
     // FORMAL STATEMENTS BELOW --------------------------------
-    //
 
 `ifdef FORMAL
     initial assume(reset);
 
-    assert property (@(posedge clk) if(reset) state == IDLE);
-    assert property (@(posedge clk) if(reset) assume(chk_ok == 1'b0 && chk_fail == 1'b0));
+
+    assert property @(posedge clk) reset |=> (state == IDLE);
+    assume property @(posedge clk) reset |=> (chk_ok == 1'b0 && chk_fail == 1'b0);
     
-    always @(posedge clk) disable iff (reset) if(state == CHECKSUM) assume(chk_ok != chk_fail);
+    assume property @(posedge clk) disable iff (reset) (state == CHECKSUM) |-> (chk_ok != chk_fail);
 
     //ALWAYS A STATE
 
-    assert property (@(posedge clk) disable iff (reset)  state == IDLE       ||
-                                                                state == HEADER     ||
-                                                                state == PAYLOAD    ||
-                                                                state == CHECKSUM   ||
-                                                                state == DONE
+    assert property (@(posedge clk) disable iff (reset) state == IDLE       ||
+                                                        state == HEADER     ||
+                                                        state == PAYLOAD    ||
+                                                        state == CHECKSUM   ||
+                                                        state == DONE
                                                         );
 
     // CORRECT STATE
@@ -82,6 +82,13 @@ module packet (
     assert property (@(posedge clk) disable iff (reset) chk_fail && (state == CHECKSUM) && !abort |=> (state == IDLE));
     assert property (@(posedge clk) disable iff (reset) (state == DONE) && !abort |=> (state == IDLE));
     assert property (@(posedge clk) disable iff (reset) abort |=> (state == IDLE));
+
+    // PUT ASSERTIONS TO STAY IN A STATE UNTIL THE PROPER SIGNALS
+    assert property (@(posedge clk) disable iff (reset) (state == HEADER) |-> !hdr_done);
+    assert property (@(posedge clk) disable iff (reset) (state == PAYLOAD) |-> !payload_done);
+
+    // MUTEXED SIGNALS
+    assert property @(posedge clk) !(valid_pkt && error_pkt);
 `endif
 
 endmodule
