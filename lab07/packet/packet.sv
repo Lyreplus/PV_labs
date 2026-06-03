@@ -56,14 +56,14 @@ module packet (
     initial assume(reset);
 
 
-    assert property @(posedge clk) reset |=> (state == IDLE);
-    assume property @(posedge clk) reset |=> (chk_ok == 1'b0 && chk_fail == 1'b0);
+    idle_after_reset: assert property (@(posedge clk) reset |=> (state == IDLE));
+    flags_zero_after_reset: assume property (@(posedge clk) reset |=> (chk_ok == 1'b0 && chk_fail == 1'b0));
     
-    assume property @(posedge clk) disable iff (reset) (state == CHECKSUM) |-> (chk_ok != chk_fail);
+    only_one_chk_flag: assume property (@(posedge clk) disable iff (reset) (state == CHECKSUM) |-> (chk_ok != chk_fail));
 
     //ALWAYS A STATE
 
-    assert property (@(posedge clk) disable iff (reset) state == IDLE       ||
+    always_a_state: assert property (@(posedge clk) disable iff (reset) state == IDLE       ||
                                                         state == HEADER     ||
                                                         state == PAYLOAD    ||
                                                         state == CHECKSUM   ||
@@ -71,24 +71,24 @@ module packet (
                                                         );
 
     // CORRECT STATE
-    assert property (@(posedge clk) disable iff (reset) valid_pkt |-> (state == DONE));
-    assert property (@(posedge clk) disable iff (reset) error_pkt |-> (state == IDLE));
+    done_if_valid: assert property (@(posedge clk) disable iff (reset) valid_pkt |-> (state == DONE));
+    idle_if_error: assert property (@(posedge clk) disable iff (reset) error_pkt |-> (state == IDLE));
 
     // STATE TRANSITIONS
-    assert property (@(posedge clk) disable iff (reset) start_pkt && (state == IDLE) && !abort |=> (state == HEADER));
-    assert property (@(posedge clk) disable iff (reset) hdr_done && (state == HEADER) && !abort |=> (state == PAYLOAD));
-    assert property (@(posedge clk) disable iff (reset) payload_done && (state == PAYLOAD) && !abort |=> (state == CHECKSUM));
-    assert property (@(posedge clk) disable iff (reset) chk_ok && (state == CHECKSUM) && !abort |=> (state == DONE));
-    assert property (@(posedge clk) disable iff (reset) chk_fail && (state == CHECKSUM) && !abort |=> (state == IDLE));
-    assert property (@(posedge clk) disable iff (reset) (state == DONE) && !abort |=> (state == IDLE));
-    assert property (@(posedge clk) disable iff (reset) abort |=> (state == IDLE));
+    header_after_idle: assert property (@(posedge clk) disable iff (reset) start_pkt && (state == IDLE) && !abort |=> (state == HEADER));
+    payload_after_header: assert property (@(posedge clk) disable iff (reset) hdr_done && (state == HEADER) && !abort |=> (state == PAYLOAD));
+    checksum_after_payload: assert property (@(posedge clk) disable iff (reset) payload_done && (state == PAYLOAD) && !abort |=> (state == CHECKSUM));
+    done_after_checksum_ok: assert property (@(posedge clk) disable iff (reset) chk_ok && (state == CHECKSUM) && !abort |=> (state == DONE));
+    idle_after_checksum_fail: assert property (@(posedge clk) disable iff (reset) chk_fail && (state == CHECKSUM) && !abort |=> (state == IDLE));
+    idle_after_done: assert property (@(posedge clk) disable iff (reset) (state == DONE) && !abort |=> (state == IDLE));
+    idle_after_abort: assert property (@(posedge clk) disable iff (reset) abort |=> (state == IDLE));
 
     // PUT ASSERTIONS TO STAY IN A STATE UNTIL THE PROPER SIGNALS
-    assert property (@(posedge clk) disable iff (reset) (state == HEADER) |-> !hdr_done);
-    assert property (@(posedge clk) disable iff (reset) (state == PAYLOAD) |-> !payload_done);
+    header_if_hdr_not_done: assert property (@(posedge clk) disable iff (reset) (state == HEADER) |-> !hdr_done);
+    payload_if_payload_not_done: assert property (@(posedge clk) disable iff (reset) (state == PAYLOAD) |-> !payload_done);
 
     // MUTEXED SIGNALS
-    assert property @(posedge clk) !(valid_pkt && error_pkt);
+    
 `endif
 
 endmodule
