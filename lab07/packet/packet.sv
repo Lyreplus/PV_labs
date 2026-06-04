@@ -128,15 +128,26 @@ module packet (
         abort                                         |=> (state == IDLE)
     );
 
-    // PUT ASSERTIONS TO STAY IN A STATE UNTIL THE PROPER SIGNALS
-    header_if_hdr_not_done: assert property (
-        @(posedge clk) disable iff (reset) 
-        hdr_done |=> (state != HEADER)
+    // STAY IN A STATE UNTIL THE PROPER SIGNALS
+    stay_in_idle: assert property(
+        @(posedge clk) disable iff (reset)
+        (state == IDLE) && !start_pkt && !abort |=> (state == IDLE)
     );
-    payload_if_payload_not_done: assert property (
+
+    stay_in_header_if_not_done: assert property (
         @(posedge clk) disable iff (reset) 
-        payload_done |=> (state != PAYLOAD)
-    ); 
+        (state == HEADER) && !hdr_done && !abort |=> (state == HEADER)
+    );
+
+    stay_in_payload_if_not_done: assert property (
+        @(posedge clk) disable iff (reset) 
+        (state == PAYLOAD) && !payload_done && !abort |=> (state == PAYLOAD)
+    );
+
+    stay_in_checksum: assert property(
+        @(posedge clk) disable iff (reset)
+        (state == CHECKSUM) && !chk_fail && !chk_ok && !abort |=> (state == CHECKSUM)
+    );
 
 `endif
 
