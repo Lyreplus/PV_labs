@@ -55,9 +55,6 @@ module packet (
 `ifdef FORMAL
     initial assume(reset);
 
-    logic past_valid;
-    always @(posedge clk) past_valid <= 1'b1;
-
     idle_after_reset: assert property (
         @(posedge clk) reset |=> (state == IDLE)
     );
