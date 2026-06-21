@@ -2,6 +2,7 @@ UNIT = gcd
 TESTBENCH = testbench
 VFLAGS = +acc +cover
 SEED ?= 12345
+TEST ?= gcd_random_test
 
 .PHONY: all setup run report report_html clean
 
@@ -14,7 +15,7 @@ setup:
 	vlog $(VFLAGS) $(TESTBENCH)_$(UNIT).sv
 
 run: setup
-	vsim -c -coverage work.$(TESTBENCH)_$(UNIT) +UVM_VERBOSITY=UVM_LOW -sv_seed $(SEED) -do "coverage save -onexit test1.ucb; run -all; quit -f"
+	vsim -c -coverage work.$(TESTBENCH)_$(UNIT) +UVM_VERBOSITY=UVM_LOW +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) -do "coverage save -onexit gcd_cov.ucdb; run -all; quit -f"
 
 report: 
 	vcover report -details -output gcd_cov_report.txt gcd_cov.ucdb

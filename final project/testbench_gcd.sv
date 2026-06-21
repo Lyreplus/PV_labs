@@ -28,6 +28,11 @@ interface gcd_if(input logic clk, input logic rst_n);
         output in_valid, a_in, b_in, out_ready;
     endclocking
 
+    clocking mon_cb @(posedge clk);
+        default input #1step;
+        input in_valid, in_ready, a_in, b_in, out_valid, out_ready, gcd_out;
+    endclocking
+
     // time (worst case) + 10 for handshake margin
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
@@ -331,21 +336,21 @@ package gcd_package;
                 tr = gcd_sequence_item::type_id::create("tr", this);
 
                 do begin
-                    @(vif.cb);
-                end while (!(vif.cb.in_valid === 1'b1 && vif.cb.in_ready === 1'b1));
+                    @(vif.mon_cb);
+                end while (!(vif.mon_cb.in_valid === 1'b1 && vif.mon_cb.in_ready === 1'b1));
 
-                if ($isunknown(vif.cb.a_in) || $isunknown(vif.cb.b_in)) begin
+                if ($isunknown(vif.mon_cb.a_in) || $isunknown(vif.mon_cb.b_in)) begin
                     `uvm_error("MON", "Unknown X/Z value detected on a and b input operands!")
                 end
 
-                tr.a = vif.cb.a_in;
-                tr.b = vif.cb.b_in;
+                tr.a = vif.mon_cb.a_in;
+                tr.b = vif.mon_cb.b_in;
 
                 do begin
-                    @(vif.cb);
-                end while (!(vif.cb.out_valid === 1'b1 && vif.cb.out_ready === 1'b1));
+                    @(vif.mon_cb);
+                end while (!(vif.mon_cb.out_valid === 1'b1 && vif.mon_cb.out_ready === 1'b1));
 
-                tr.gcd_out = vif.cb.gcd_out;
+                tr.gcd_out = vif.mon_cb.gcd_out;
                 // log statement
                 `uvm_info("MON", {"Catched transaction: ", tr.convert2string()}, UVM_LOW)
                 analysis_port.write(tr);
@@ -611,7 +616,7 @@ module testbench_gcd;
     );
 
     initial begin
-        virtual gcd_if vif = gcd_if_inst;
+        automatic virtual gcd_if vif = gcd_if_inst;
 
         uvm_config_db#(virtual gcd_if)::set(null, "*", "vif", vif);
 
