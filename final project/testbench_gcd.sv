@@ -294,8 +294,9 @@ package gcd_package;
                 // output handshake
                 if (tr.out_ready_delay > 0) begin
                     repeat (tr.out_ready_delay) @(vif.cb);
-                    vif.cb.out_ready <= 1'b1;
                 end
+
+                vif.cb.out_ready <= 1'b1;
 
                 do begin
                     @(vif.cb);
