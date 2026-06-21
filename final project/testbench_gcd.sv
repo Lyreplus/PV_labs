@@ -82,8 +82,22 @@ interface gcd_if(input logic clk, input logic rst_n);
     property p_reset_behavior;
         @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0 && gcd_out == '0);
     endproperty
-    
+
     assert_reset: assert property(p_reset_behavior) else $error("Reset behavior failed!");
+
+    property p_reset_state;
+        @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0);
+    endproperty
+    
+    assert_reset_state: assert property(p_reset_state) else $error("Reset state failed!");
+
+    property p_valid_no_drop(valid, ready);
+        @(posedge clk) disable iff (!rst_n)
+        (valid && !ready) |=> valid;
+    endproperty
+
+    assert_in_valid_no_drop: assert property(p_valid_no_drop(in_valid, in_ready));
+    assert_out_valid_no_drop: assert property(p_valid_no_drop(out_valid, out_ready));
 endinterface
 
 package gcd_package;
@@ -248,7 +262,7 @@ package gcd_package;
                 // wait input handshake
                 do begin
                     @(vif.cb);
-                end while (vif.cb.in_ready != 1'b1); 
+                end while (vif.cb.in_ready !== 1'b1); 
 
 
                 vif.cb.in_valid <= 1'b0;
@@ -261,7 +275,7 @@ package gcd_package;
 
                 do begin
                     @(vif.cb);
-                end while (vif.cb.out_valid != 1'b1);
+                end while (vif.cb.out_valid !== 1'b1);
 
                 tr.gcd_out = vif.cb.gcd_out;
 
