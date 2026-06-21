@@ -223,11 +223,11 @@ package gcd_package;
         endfunction
 
         task body();
-            `uvm_info("SEQ", $sformatf("Executing Random Sequence with %0d transactions", number_transactions), UVM_LOW)
-
             if (!randomize()) begin
                 `uvm_error("SEQ", "Randomization failed for number of transactions")
             end
+            
+            `uvm_info("SEQ", $sformatf("Executing Random Sequence with %0d transactions", number_transactions), UVM_LOW)
 
             for (int i = 0; i < number_transactions; i++) begin
                 req = gcd_sequence_item::type_id::create("req");
