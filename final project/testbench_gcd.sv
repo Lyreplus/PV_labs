@@ -401,7 +401,7 @@ package gcd_package;
  
         gcd_sequence_item cov_transaction;
 
-        gcd_covergroup gcd_cg;
+        covergroup gcd_cg;
             option.per_instance = 1;
 
             cp_a: coverpoint cov_transaction.a {
@@ -435,7 +435,8 @@ package gcd_package;
         endfunction
 
         virtual function void write(gcd_sequence_item transaction);
-            int expected_gcd = calculate_gcd(transaction.a, transaction.b);
+            int expected_gcd;
+            expected_gcd = calculate_gcd(transaction.a, transaction.b);
 
             // checker - start
             if (expected_gcd !== transaction.gcd_out) begin
