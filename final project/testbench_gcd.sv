@@ -320,7 +320,7 @@ package gcd_package;
         virtual function void build_phase(uvm_phase phase);
             super.build_phase(phase);
             if (!uvm_config_db#(virtual gcd_if)::get(this, "", "vif", vif)) begin
-                `uvm_fatal("No virtual interface in MON", "Virtual interface not set for: " + get_full_name() + ".vif");
+                `uvm_fatal("No virtual interface in MON", {"Virtual interface not set for: ", get_full_name(), ".vif"});
             end
         endfunction
 
