@@ -328,7 +328,7 @@ package gcd_package;
                 tr = gcd_sequence_item::type_id::create("tr", this);
 
                 do begin
-                    @(vif.cb)
+                    @(vif.cb);
                 end while (!(vif.cb.in_valid === 1'b1 && vif.cb.in_ready === 1'b1));
 
                 if ($isunknown(vif.cb.a_in) || $isunknown(vif.cb.b_in)) begin
@@ -339,7 +339,7 @@ package gcd_package;
                 tr.b = vif.cb.b_in;
 
                 do begin
-                    @(vif.cb)
+                    @(vif.cb);
                 end while (!(vif.cb.out_valid === 1'b1 && vif.cb.out_ready === 1'b1));
 
                 tr.gcd_out = vif.cb.gcd_out;
@@ -389,6 +389,7 @@ package gcd_package;
             if (get_is_active() == UVM_ACTIVE) begin
                 driver.seq_item_port.connect(sequencer.seq_item_export);
             end
+        endfunction
     endclass
 
     // Scoreboard and Coverage
