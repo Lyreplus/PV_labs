@@ -84,36 +84,70 @@ The module processes one transaction at a time. Latency is defined as the number
 \section{Traceability Matrix}
 
 \begin{longtblr}[
-  label = {tab:matrix},
-  caption = {Traceability Matrix}
+  label = {tab:matrix_features},
+  caption = {Traceability Matrix: Features and Tests}
 ]{
   width = \linewidth,
-  colspec = {l p{6.5cm} p{3cm} l X}, % 'X' funziona come in tabularx
-  rowhead = 1, % Ripete la prima riga (intestazione) su ogni pagina
-  hlines,      % Disegna tutte le linee orizzontali automaticamente
-  vlines,      % Disegna tutte le linee verticali
-  row{1} = {font=\bfseries}, % Rende l'intestazione grassetto
-}   % TODO: will add req number later
-    \textbf{Req ID} & \textbf{Requirement} & \textbf{Feature} & \textbf{Test ID} & Coverage Goal\\ \hline
-    REQ  & GCD is performed correctly for operands A and B &  GCD Functioning (General case) & & 100\% Functional Coverage\\ 
-    REQ & Edge cases GCD(0,0), GCD(A, 0) (with $A \neq 0$) and GCD(0, B) (with $B\neq0$) are covered. Output is correct & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
-    REQ & Edge case GCD(A, A) is covered. Output is correct & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
-    REQ & Edge case GCD(A, B), where $A == 2^{WIDTH} - 1$ or $B == 2^{WIDTH} -1$ & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
-    REQ & GCD(A,B) is performed correctly for $A > B$ and $B > A$         &  GCD Functioning (General case) & & 100\% Functional Coverage\\
-    REQ & When \texttt{rst\_n} is low, shift to the IDLE state& Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
-    REQ & When \texttt{rst\_n} is low, clear internal registers to 0 & Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
-    REQ& When \texttt{rst\_n} is low, sets \texttt{in\_ready = 1}, \texttt{out\_valid = 0}, and \texttt{gcd\_out = 0}. & Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
-    REQ & Transactions captured only when \texttt{in\_ready} \&\& \texttt{in\_valid} are high & Handshake Protocol & & 100\% Assertion Pass\\
-    REQ & State transitions from IDLE to DONE takes only 1 cycle when $A == 0$ or $B == 0$ or $A == B$ & 1 cycle GCD (Latency) & & 100\% Assertion Pass \\ 
-    REQ & General case of $N \geq 1$ subtraction steps occur in $1+N$ cycles & $1+N$ Cycles (Latency) & & 100\% Assertion Pass\\
-    REQ & \texttt{gcd\_out} remains stable until \texttt{out\_ready} is asserted & Output Stability & & 100\% Assertion Pass\\
-    REQ & FSM transitions IDLE to RUN on input handshake and $\texttt{a\_in} \neq 0$, $\texttt{b\_in} \neq 0$, and $\texttt{a\_in} \neq \texttt{b\_in}$ & FSM Transitions & & 100\% Assertion Pass\\
-    REQ & FSM transitions RUN to DONE when next-cycle values \texttt{a\_next} is equal to \texttt{b\_next} on the final subtraction edge & FSM Transitions & & 100\% Assertion Pass\\
-    REQ & FSM transitions DONE to IDLE on output handshake (\texttt{out\_valid == 1} and \texttt{out\_ready == 1}) & FSM Transitions & & 100\% Assertion Pass\\
-    REQ & Module is ready to accept input (\texttt{in\_ready == 1}) immediately on the first rising edge after \texttt{rst\_n} is released, and it is in IDLE state & Post-Reset & & 100\% Assertion Pass\\
-    REQ & New input handshake can occur on the earliest cycle immediately after an output handshake & Throughput & & 100\% Assertion Pass\\
-    REQ & On \texttt{in\_valid == 1}, \texttt{a\_in}, and \texttt{b\_in} must remain stable while stalled (\texttt{in\_ready == 0}) & Protocol & & 100\% Assertion Pass\\
+  colspec = {l p{6cm} p{3cm} p{4cm}}, 
+  rowhead = 1, 
+  hlines,      
+  vlines,      
+  row{1} = {font=\bfseries}, 
+}   
+    Req ID & Requirement & Feature & Test ID \\ 
+    REQ-001 & GCD is performed correctly for operands A and B & GCD Functioning (General case) & \texttt{gcd\_random\_test} \\ 
+    REQ-002 & Edge cases GCD(0,0), GCD(A, 0) (with $A \neq 0$) and GCD(0, B) (with $B\neq0$) are covered. Output is correct & GCD Functioning (Edge cases) & \texttt{gcd\_directed\_test} \\
+    REQ-003 & Edge case GCD(A, A) is covered. Output is correct & GCD Functioning (Edge cases) & \texttt{gcd\_directed\_test} \\
+    REQ-004 & Edge case GCD(A, B), where $A == 2^{WIDTH} - 1$ or $B == 2^{WIDTH} -1$ & GCD Functioning (Edge cases) & \texttt{gcd\_directed\_test} \\
+    REQ-005 & GCD(A,B) is performed correctly for $A > B$ and $B > A$ & GCD Functioning (General case) & \texttt{gcd\_random\_test} \\
+    REQ-006 & When \texttt{rst\_n} is low, shift to the IDLE state & Reset behaviour & SVA: \texttt{assert\_reset\_behavior} \\
+    REQ-007 & When \texttt{rst\_n} is low, clear internal registers to 0 & Reset behaviour & SVA: \texttt{assert\_reset\_behavior} \\
+    REQ-008 & When \texttt{rst\_n} is low, sets \texttt{in\_ready = 1}, \texttt{out\_valid = 0}, and \texttt{gcd\_out = 0}. & Reset behaviour & SVA: \texttt{assert\_reset\_behavior} \\
+    REQ-009 & Transactions captured only when \texttt{in\_ready} \&\& \texttt{in\_valid} are high & Handshake Protocol & SVA: \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_out\_valid\_no\_drop} \\
+    REQ-010 & State transitions from IDLE to DONE takes only 1 cycle when $A == 0$ or $B == 0$ or $A == B$ & 1 cycle GCD (Latency) & \texttt{gcd\_directed\_test} \\ 
+    REQ-011 & General case of $N \geq 1$ subtraction steps occur in $1+N$ cycles & $1+N$ Cycles (Latency) & \texttt{gcd\_random\_test} \\
+    REQ-012 & \texttt{gcd\_out} remains stable until \texttt{out\_ready} is asserted & Output Stability & SVA: \texttt{assert\_output\_stable} \\
+    REQ-013 & DUT accepts input on handshake and immediately drops \texttt{in\_ready} to indicate processing has started & FSM Transitions & SVA: \texttt{assert\_in\_ready\_drop} \\
+    REQ-014 & DUT asserts \texttt{out\_valid} within the maximum theoretical latency limit ($2^{WIDTH}$ cycles) without hanging & FSM Transitions & Procedural watchdog: \texttt{MAX\_TIMEOUT} \\
+    REQ-015 & DUT drops \texttt{out\_valid} on the clock cycle immediately following the \texttt{out\_ready} handshake. & FSM Transitions & SVA: \texttt{assert\_out\_valid\_drop} \\
+    REQ-016 & Module is ready to accept input (\texttt{in\_ready == 1}) immediately on the first rising edge after \texttt{rst\_n} is released, and it is in IDLE state & Post-Reset & SVA: \texttt{assert\_reset\_behavior} \\
+    REQ-017 & New input handshake can occur on the earliest cycle immediately after an output handshake & Throughput & \texttt{gcd\_random\_test} \\
+    REQ-018 & On \texttt{in\_valid == 1}, \texttt{a\_in}, and \texttt{b\_in} must remain stable while stalled (\texttt{in\_ready == 0}) & Protocol & SVA: \texttt{assert\_input\_stable} \\
 \end{longtblr}
+
+\begin{longtblr}[
+  label = {tab:matrix_coverage},
+  caption = {Traceability Matrix: Coverage Goals}
+]{
+  width = \linewidth,
+  colspec = {l p{6cm} p{5cm}}, 
+  rowhead = 1, 
+  hlines,      
+  vlines,      
+  row{1} = {font=\bfseries}, 
+}   
+    Req ID & Test ID & Coverage Goal \\ 
+    REQ-001 & \texttt{gcd\_random\_test} & 100\% Functional Coverage \\ 
+    REQ-002 & \texttt{gcd\_directed\_test} & 100\% Functional Coverage \\
+    REQ-003 & \texttt{gcd\_directed\_test} & 100\% Functional Coverage \\
+    REQ-004 & \texttt{gcd\_directed\_test} & 100\% Functional Coverage \\
+    REQ-005 & \texttt{gcd\_random\_test} & 100\% Functional Coverage \\
+    REQ-006 & SVA: \texttt{assert\_reset\_behavior} & 100\% Code Coverage and Assertion Pass \\
+    REQ-007 & SVA: \texttt{assert\_reset\_behavior} & 100\% Code Coverage and Assertion Pass \\
+    REQ-008 & SVA: \texttt{assert\_reset\_behavior} & 100\% Code Coverage and Assertion Pass \\
+    REQ-009 & SVA: \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_out\_valid\_no\_drop} & 100\% Assertion Pass \\
+    REQ-010 & \texttt{gcd\_directed\_test} & 100\% Scoreboard Match \\ 
+    REQ-011 & \texttt{gcd\_random\_test} & 100\% Scoreboard Match \\
+    REQ-012 & SVA: \texttt{assert\_output\_stable} & 100\% Assertion Pass \\
+    REQ-013 & SVA: \texttt{assert\_in\_ready\_drop} & 100\% Assertion Pass \\
+    REQ-014 & Procedural watchdog: \texttt{MAX\_TIMEOUT} & Zero UVM Errors (No timeout)\\
+    REQ-015 & SVA: \texttt{assert\_out\_valid\_drop} & 100\% Assertion Pass \\
+    REQ-016 & SVA: \texttt{assert\_reset\_behavior} & 100\% Assertion Pass \\
+    REQ-017 & \texttt{gcd\_random\_test} & 100\% Scoreboard Match \& Zero UVM Errors \\
+    REQ-018 & SVA: \texttt{assert\_input\_stable} & 100\% Assertion Pass \\
+\end{longtblr}
+
+Note: SVA stands for System Verilog Assertions.
 
 \subsection{Verification Strategy}
 The Verification Strategy will be divided on different approaches, each one will be described in the following sections.
@@ -146,7 +180,7 @@ To check all of these tests, I will embed in the UVM scoreboard previously menti
 Assertions are ideal for checking handshake signals and protocols compliance. In fact, they evaluate over multiple simulation cycles. That is why I decided to implement an Assertion Based Verification strategy using System Verilog Assertions to cover temporal properties, control logic and compliance of the protocols (such as correctness of handshakes). The following properties are tested with this approach:
 \begin{itemize}
     \item handshake protocol for FSM transitions and data transfer (both input and output channels)
-    \item FSM valid states and valid transitions (that must occur exactly when the specifications define)
+    \item End to end handshake protocol compliance and timeout limits (verifying implicitly from the outside that the internal FSM does not hang or enter deadlocks)
     \item data stability during stalled input handshake (\texttt{a\_in} and \texttt{b\_in} remain stable when \texttt{in\_valid == 1} and \texttt{in\_ready == 0})
     \item output stability and correct behaviour during reset
 \end{itemize}
@@ -161,23 +195,23 @@ To summarize all of these verification strategies, the following table shows the
   caption = {Verification Strategy Summary}
 ]{
   width = \linewidth,
-  colspec = {l p{5cm} X}, % 'X' funziona come in tabularx
+  colspec = {p{4cm} p{5cm} X}, % 'X' funziona come in tabularx
   rowhead = 1, % Ripete la prima riga (intestazione) su ogni pagina
   hlines,      % Disegna tutte le linee orizzontali automaticamente
   vlines,      % Disegna tutte le linee verticali
   row{1} = {font=\bfseries}, % Rende l'intestazione grassetto
 } 
     Req IDs & Verification Strategy & Target Features \\
-    REQ & Constrained Random Testing & GCD Functioning (General Case), 1+N Cycles (Latency) \\
-    REQ & Directed Testing & GCD Functioning (Edge Cases), 1 Cycle GCD (Latency), Reset Behaviour \\
-    REQ & Assertion Based Verification & Handshake Protocol, Protocol, FSM Transitions, Output Stability, Post-Reset, Throughput \\
+    REQ-001, REQ-005, REQ-011, REQ-017 & Constrained Random Testing & GCD Functioning (General Case), 1+N Cycles (Latency), Throughput \\
+    REQ-002, REQ-003, REQ-004, REQ-006, REQ-007, REQ-008, REQ-010 & Directed Testing & GCD Functioning (Edge Cases), 1 Cycle GCD (Latency), Reset Behaviour \\
+    REQ-009, REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-018 & Assertion Based Verification & Handshake Protocol, Protocol, FSM Transitions, Output Stability, Post-Reset,  \\
 \end{longtblr}
 
 \subsection{Closure Criteria}
 To consider the verification process complete and successful, the following quantitative metrics must be achieved:
 \begin{itemize}
     \item \textbf{100\% Test Pass Rate:} All UVM tests (bring-up, directed, and constrained-random) must pass successfully without any fatal errors or timeouts.
-    \item \textbf{100\% Functional Coverage:} All defined covergroups and coverpoints (including edge cases, operand categories, and valid FSM states) must reach 100\% coverage.
+    \item \textbf{100\% Functional Coverage:} All defined covergroups and coverpoints (including mathematical edge cases, mathematical states, and operand categories) must reach 100\% coverage.
     \item \textbf{High Code Coverage:} Achieve at least 95\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code).
     \item \textbf{100\% Assertion Pass Rate:} Zero assertion failures during all test runs, confirming protocol and timing compliance.
 \end{itemize}
