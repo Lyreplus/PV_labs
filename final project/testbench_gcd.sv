@@ -570,7 +570,7 @@ package gcd_package;
 endpackage : gcd_package
 
 // Testbench top module
-module gcd_testbench;
+module testbench_gcd;
     import loc_constants::*;
     import gcd_package::*;
     import uvm_pkg::*;
@@ -618,4 +618,4 @@ module gcd_testbench;
         run_test();
     end
 
-endmodule : gcd_testbench
+endmodule : testbench_gcd
