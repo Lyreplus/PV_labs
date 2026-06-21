@@ -571,6 +571,7 @@ endpackage : gcd_package
 module gcd_testbench;
     import loc_constants::*;
     import gcd_package::*;
+    import uvm_pkg::*;
 
     logic clk;
     logic rst_n;
@@ -611,7 +612,7 @@ module gcd_testbench;
         virtual gcd_if vif = gcd_if_inst;
 
         uvm_config_db#(virtual gcd_if)::set(null, "*", "vif", vif);
-        
+
         run_test();
     end
 
