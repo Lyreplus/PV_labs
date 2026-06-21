@@ -1,0 +1,80 @@
+\documentclass[titlepage]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage[margin=0.98in]{geometry}
+\usepackage{tabularray}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{minted}
+\usepackage{hyperref}
+\usepackage[inkscapelatex=false]{svg}
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Pagella}
+
+
+\lstdefinestyle{svlog}{
+	inputpath={../},
+    backgroundcolor=\color{gray!10},   
+    commentstyle=\color{green!50!black},
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{magenta},
+    basicstyle=\linespread{1}\footnotesize\ttfamily, % ttfamily is better for code
+    numberstyle=\tiny\color{gray},
+    numbers=left,                    
+    breaklines=true,                 
+    language=Verilog,                 % Base language
+    morekeywords={logic, bit, byte, int, longint, shortint, void, 
+                  always_ff, always_comb, always_latch, interface, 
+                  endinterface, package, endpackage, enum, struct, 
+                  typedef, assign, assert, property, sequence, 
+                  virtual, local, protected, package, import, export,
+				  covergroup, coverpoint, endgroup, illegal_bins, 
+				  bins, ignore_bins, endproperty, iff, repeat, 
+				  clocking, endclocking, assume},
+    frame=single,
+    tabsize=2,
+}
+
+
+% Clear the caption from the top (first header)
+\DefTblrTemplate{firsthead}{default}{} 
+
+% Place the caption at the bottom (last footer)
+\DefTblrTemplate{lastfoot}{default}{
+  \UseTblrTemplate{caption}{default}
+}
+
+
+\title{Processor Verification \\Final Project: Greatest Common Divisor}
+\author{Lorenzo Pattaro Zonta}
+
+\begin{document}
+
+\maketitle
+
+\input{1-verification-testplan}
+\input{2-UVM testbench}
+\input{3-UVM tests}
+\input{4-Functional coverage report}
+\input{5-Verification failure - bug}
+
+
+\section{Conclusion}
+
+\newpage
+\section{Appendix}
+
+To show the waveforms, I have used the Surfer software.
+
+\subsection{Number of hours required}
+For the completion of this laboratory, it has been needed x hours. 
+
+\subsection{Use of AI}
+Gemini AI has been used to fix bugs in the code and to improve some sentences in the report.
+\subsection{Appendix A}\label{sec:appa}
+
+\end{document}

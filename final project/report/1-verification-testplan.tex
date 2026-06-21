@@ -1,0 +1,198 @@
+\section{Design Under Test - Description}
+The GCD module computes the Greatest Common Divisor of two unsigned integers utilizing the subtractive Euclidean algorithm. It processes one pair of inputs at a time and interfaces with other components via two independent ready and valid handshake channels.
+
+\subsection{Mathematical Definition}
+For unsigned operands $A$ and $B$, the module implements the following mathematical properties:
+\begin{itemize}
+    \item $\gcd(A, 0) = A$
+    \item $\gcd(0, B) = B$
+    \item $\gcd(0, 0) = 0$
+    \item $\gcd(A, A) = A$
+    \item $\gcd(A, B) = \gcd(A-B, B)$ when $A > B$
+    \item $\gcd(A, B) = \gcd(A, B-A)$ when $B > A$
+\end{itemize}
+
+\subsection{Interface Definition}
+The module is parametrized with \texttt{WIDTH}, which defines the width of the data operands and defaults it to 16.
+
+\subsubsection{Global Signals}
+\begin{itemize}
+    \item \texttt{clk}: Clock signal.
+    \item \texttt{rst\_n}: Active-low synchronous reset.
+\end{itemize}
+
+\subsubsection{Input Channel}
+A transaction is captured on the rising edge where \texttt{in\_valid} and \texttt{in\_ready} are simultaneously asserted.
+\begin{itemize}
+    \item \texttt{in\_valid}: Asserted by the producer when \texttt{a\_in} and \texttt{b\_in} hold valid data.
+    \item \texttt{in\_ready}: Asserted by the module when ready to accept a new transaction; high only in the \texttt{IDLE} state.
+    \item \texttt{a\_in}, \texttt{b\_in}: \texttt{WIDTH}-bit operands.
+\end{itemize}
+
+\subsubsection{Output Channel}
+A transaction completes on the rising edge where \texttt{out\_valid} and \texttt{out\_ready} are simultaneously high.
+\begin{itemize}
+    \item \texttt{out\_valid}: Asserted by the module when \texttt{gcd\_out} holds a valid result; high during the \texttt{DONE} state.
+    \item \texttt{out\_ready}: Asserted by the consumer when it is ready to accept the result.
+    \item \texttt{gcd\_out}: \texttt{WIDTH}-bit GCD result, which remains stable and valid for the entire period \texttt{out\_valid} is asserted.
+\end{itemize}
+
+\subsection{Functional Description and State Machine}
+The module behaves according to a Finite State Machine (FSM) comprising three states:
+\begin{itemize}
+    \item \textbf{IDLE}: The module waits for input and asserts \texttt{in\_ready = 1}.
+    \item \textbf{RUN}: The module performs iterative subtraction. In each cycle, if \texttt{a\_reg > b\_reg}, it computes \texttt{a\_next = a\_reg - b\_reg}. If \texttt{b\_reg > a\_reg}, it computes \texttt{b\_next = b\_reg - a\_reg}.
+    \item \textbf{DONE}: The result is ready, and the module asserts \texttt{out\_valid = 1}.
+\end{itemize}
+
+\subsubsection{Transitions}
+\begin{itemize}
+    \item \textbf{IDLE $\rightarrow$ DONE}: Occurs in exactly 1 cycle upon an input handshake if the result is known immediately (\texttt{a\_in == 0}, \texttt{b\_in == 0}, or \texttt{a\_in == b\_in}).
+    \item \textbf{IDLE $\rightarrow$ RUN}: Occurs upon an input handshake if operands are non-zero and unequal.
+    \item \textbf{RUN $\rightarrow$ DONE}: Fires when the next-cycle values of the working registers become equal (\texttt{a\_next == b\_next}).
+    \item \textbf{DONE $\rightarrow$ IDLE}: Triggered by the output handshake (\texttt{out\_valid == 1} and \texttt{out\_ready == 1}).
+\end{itemize}
+
+\subsection{Latency and Throughput}
+The module processes one transaction at a time. Latency is defined as the number of cycles from the input handshake edge to the first cycle where \texttt{out\_valid} is asserted.
+\begin{itemize}
+    \item \textbf{Early Exit}: 1 cycle (for operands yielding an immediate result).
+    \item \textbf{General Case}: $1 + N$ cycles, where $N \ge 1$ represents the number of subtraction steps required for convergence.
+\end{itemize}
+
+\subsection{Signals table}
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|l|l|l|p{8cm}|}
+        \hline
+        \textbf{Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+        \texttt{clk} & Input & 1 & Clock signal \\ \hline
+        \texttt{rst\_n} & Input & 1 & Active-low sync reset \\ \hline
+        \texttt{in\_valid} & Input & 1 & Asserted by the producer when a\_in and b\_in hold valid data \\ \hline
+        \texttt{in\_ready} & Output & 1 & Asserted by the module when it can accept a new transaction. High only in the IDLE state. \\ \hline
+        \texttt{a\_in} & Input & WIDTH & First operand \\ \hline
+        \texttt{b\_in} & Input & WIDTH & Second operand \\ \hline
+        \texttt{out\_valid} & Output & 1 & Asserted by the module when gcd\_out holds a valid result. High for the entire DONE state. \\ \hline
+        \texttt{out\_ready} & Input & 1 & Asserted by the consumer when it is ready to accept the result. \\ \hline
+        \texttt{gcd\_out} & Output & WIDTH & GCD result. Valid and stable for the entire period that out\_valid is asserted. \\ \hline
+    \end{tabular}
+    \caption{GCD Module Input and Output Signals}
+    \label{tab:gcd_signals}
+\end{table}
+
+\section{Traceability Matrix}
+
+\begin{longtblr}[
+  label = {tab:matrix},
+  caption = {Traceability Matrix}
+]{
+  width = \linewidth,
+  colspec = {l p{6.5cm} p{3cm} l X}, % 'X' funziona come in tabularx
+  rowhead = 1, % Ripete la prima riga (intestazione) su ogni pagina
+  hlines,      % Disegna tutte le linee orizzontali automaticamente
+  vlines,      % Disegna tutte le linee verticali
+  row{1} = {font=\bfseries}, % Rende l'intestazione grassetto
+}   % TODO: will add req number later
+    \textbf{Req ID} & \textbf{Requirement} & \textbf{Feature} & \textbf{Test ID} & Coverage Goal\\ \hline
+    REQ  & GCD is performed correctly for operands A and B &  GCD Functioning (General case) & & 100\% Functional Coverage\\ 
+    REQ & Edge cases GCD(0,0), GCD(A, 0) (with $A \neq 0$) and GCD(0, B) (with $B\neq0$) are covered. Output is correct & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
+    REQ & Edge case GCD(A, A) is covered. Output is correct & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
+    REQ & Edge case GCD(A, B), where $A == 2^{WIDTH} - 1$ or $B == 2^{WIDTH} -1$ & GCD Functioning (Edge cases) & & 100\% Functional Coverage\\
+    REQ & GCD(A,B) is performed correctly for $A > B$ and $B > A$         &  GCD Functioning (General case) & & 100\% Functional Coverage\\
+    REQ & When \texttt{rst\_n} is low, shift to the IDLE state& Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
+    REQ & When \texttt{rst\_n} is low, clear internal registers to 0 & Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
+    REQ& When \texttt{rst\_n} is low, sets \texttt{in\_ready = 1}, \texttt{out\_valid = 0}, and \texttt{gcd\_out = 0}. & Reset behaviour & & 100\% Code Coverage and Assertion Pass\\
+    REQ & Transactions captured only when \texttt{in\_ready} \&\& \texttt{in\_valid} are high & Handshake Protocol & & 100\% Assertion Pass\\
+    REQ & State transitions from IDLE to DONE takes only 1 cycle when $A == 0$ or $B == 0$ or $A == B$ & 1 cycle GCD (Latency) & & 100\% Assertion Pass \\ 
+    REQ & General case of $N \geq 1$ subtraction steps occur in $1+N$ cycles & $1+N$ Cycles (Latency) & & 100\% Assertion Pass\\
+    REQ & \texttt{gcd\_out} remains stable until \texttt{out\_ready} is asserted & Output Stability & & 100\% Assertion Pass\\
+    REQ & FSM transitions IDLE to RUN on input handshake and $\texttt{a\_in} \neq 0$, $\texttt{b\_in} \neq 0$, and $\texttt{a\_in} \neq \texttt{b\_in}$ & FSM Transitions & & 100\% Assertion Pass\\
+    REQ & FSM transitions RUN to DONE when next-cycle values \texttt{a\_next} is equal to \texttt{b\_next} on the final subtraction edge & FSM Transitions & & 100\% Assertion Pass\\
+    REQ & FSM transitions DONE to IDLE on output handshake (\texttt{out\_valid == 1} and \texttt{out\_ready == 1}) & FSM Transitions & & 100\% Assertion Pass\\
+    REQ & Module is ready to accept input (\texttt{in\_ready == 1}) immediately on the first rising edge after \texttt{rst\_n} is released, and it is in IDLE state & Post-Reset & & 100\% Assertion Pass\\
+    REQ & New input handshake can occur on the earliest cycle immediately after an output handshake & Throughput & & 100\% Assertion Pass\\
+    REQ & On \texttt{in\_valid == 1}, \texttt{a\_in}, and \texttt{b\_in} must remain stable while stalled (\texttt{in\_ready == 0}) & Protocol & & 100\% Assertion Pass\\
+\end{longtblr}
+
+\subsection{Verification Strategy}
+The Verification Strategy will be divided on different approaches, each one will be described in the following sections.
+
+\subsubsection{Constrained Random Testing}
+To tackle the GCD Functioning, a Constrained Random Testing Verification will be implemented. The testbench will create randomized input operands for A and B and a UVM scoreboard, containing a Golden Reference Model that will compute the expected GCD result, will be used to make a comparison with the DUT output. In fact, the scoreboard will collect the randomized inputs, compute the expected GCD result of the two operands and compare it with the DUT output. 
+
+\subsubsection{Directed Testing}
+To cover GCD functioning corner cases, the early exit scenario (1 cycle GCD Latency) and reset behaviours, I will implement a Directed Testing Verification setup, to correctly cover these particular scenarios.
+
+For the GCD part, I will create specific values for the operands A and B to cover the following cases: 
+\begin{itemize}
+    \item GCD(0, 0)
+    \item GCD(A, 0) (with $A \neq 0$)
+    \item GCD(0, B) (with $B \neq 0$)
+    \item GCD(A, A)
+    \item GCD(A, B) where $A == 2^{WIDTH} -1$ or $B == 2^{WIDTH} - 1$
+\end{itemize}
+
+
+Using the same scoreboard setup, I will create specific tests to cover the early exit scenario, where the GCD is expected to be computed in 1 cycle.
+
+Lastly, I will create a specific test to cover the reset behaviour, where the DUT will be reset and the output will be checked to verify that it is in the expected state.\\
+
+\vspace{5mm}
+
+To check all of these tests, I will embed in the UVM scoreboard previously mentioned to compare the DUT output with the expected output.
+
+\subsubsection{Assertion Based Verification}
+Assertions are ideal for checking handshake signals and protocols compliance. In fact, they evaluate over multiple simulation cycles. That is why I decided to implement an Assertion Based Verification strategy using System Verilog Assertions to cover temporal properties, control logic and compliance of the protocols (such as correctness of handshakes). The following properties are tested with this approach:
+\begin{itemize}
+    \item handshake protocol for FSM transitions and data transfer (both input and output channels)
+    \item FSM valid states and valid transitions (that must occur exactly when the specifications define)
+    \item data stability during stalled input handshake (\texttt{a\_in} and \texttt{b\_in} remain stable when \texttt{in\_valid == 1} and \texttt{in\_ready == 0})
+    \item output stability and correct behaviour during reset
+\end{itemize}
+
+These properties will be evaluated during the run of the UVM simulation. However, they are designed to be formal ready, meaning that can be used in a formal verification tool to prove the state space of the control logic without any change.
+
+\subsubsection{Summary table}
+To summarize all of these verification strategies, the following table shows the mapping between the requirements and the verification strategy used to verify them.
+
+\begin{longtblr}[
+  label = {tab:verification_summary},
+  caption = {Verification Strategy Summary}
+]{
+  width = \linewidth,
+  colspec = {l p{5cm} X}, % 'X' funziona come in tabularx
+  rowhead = 1, % Ripete la prima riga (intestazione) su ogni pagina
+  hlines,      % Disegna tutte le linee orizzontali automaticamente
+  vlines,      % Disegna tutte le linee verticali
+  row{1} = {font=\bfseries}, % Rende l'intestazione grassetto
+} 
+    Req IDs & Verification Strategy & Target Features \\
+    REQ & Constrained Random Testing & GCD Functioning (General Case), 1+N Cycles (Latency) \\
+    REQ & Directed Testing & GCD Functioning (Edge Cases), 1 Cycle GCD (Latency), Reset Behaviour \\
+    REQ & Assertion Based Verification & Handshake Protocol, Protocol, FSM Transitions, Output Stability, Post-Reset, Throughput \\
+\end{longtblr}
+
+\subsection{Closure Criteria}
+To consider the verification process complete and successful, the following quantitative metrics must be achieved:
+\begin{itemize}
+    \item \textbf{100\% Test Pass Rate:} All UVM tests (bring-up, directed, and constrained-random) must pass successfully without any fatal errors or timeouts.
+    \item \textbf{100\% Functional Coverage:} All defined covergroups and coverpoints (including edge cases, operand categories, and valid FSM states) must reach 100\% coverage.
+    \item \textbf{High Code Coverage:} Achieve at least 95\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code).
+    \item \textbf{100\% Assertion Pass Rate:} Zero assertion failures during all test runs, confirming protocol and timing compliance.
+\end{itemize}
+
+\subsection{UVM Architecture}
+
+For the GCD module, I implemented a UVM testbench architecture. One methodology could be of implement two different agents, one for input channel and one for the output one, as they have independent handshake protocols.
+
+However, I decided to implement a single agent, because both channels share the same clock and reset signals, and the dimension of the module itself is relatively small.
+
+The following diagram shows the UVM architecture that I implemented.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=\columnwidth]{diagram.svg}
+    \caption{UVM testbench architecture diagram}
+    \label{fig:uvm_diagram}
+\end{figure}
