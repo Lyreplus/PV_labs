@@ -2,11 +2,11 @@
 `timescale 1ns/1ps
 `include "uvm_macros.svh"
 
-package constants
+package loc_constants;
     localparam int unsigned WIDTH = 16;
 endpackage
 
-import constants::*;
+import loc_constants::*;
 
 // Interface
 interface gcd_if(input logic clk, input logic rst_n);
@@ -53,13 +53,58 @@ interface gcd_if(input logic clk, input logic rst_n);
         end
     end
 
+    // REQ 6,7,8,16 reset behavior
+    property p_reset_behavior;
+        @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0 && gcd_out == '0);
+    endproperty
+
+    assert_reset_behavior: assert property(p_reset_behavior) else $error("RESET VIOLATION: Signals did not default to IDLE state!");
+
+    // REQ 9 handshake protocol
+    property p_valid_no_drop(valid, ready);
+        @(posedge clk) disable iff (!rst_n)
+        (valid && !ready) |=> valid;
+    endproperty
+
+    assert_in_valid_no_drop: assert property(p_valid_no_drop(in_valid, in_ready)) 
+        else $error("PROTOCOL VIOLATION: in_valid dropped before in_ready!");
+    assert_out_valid_no_drop: assert property(p_valid_no_drop(out_valid, out_ready))
+        else $error("PROTOCOL VIOLATION: out_valid dropped before out_ready!");
+
+    // REQ 12 output stability
+    property p_output_stable;
+        @(posedge clk) disable iff (!rst_n || $isunknown(out_valid) || $isunknown(out_ready) || $isunknown(gcd_out))
+        (out_valid && !out_ready) |=> (out_valid && $stable(gcd_out));
+    endproperty
+
+    assert_output_stable: assert property(p_output_stable)
+        else $error("PROTOCOL VIOLATION: gcd_out changed while stalled!");
+
+    // REQ 13 FSM start
+    property p_in_ready_drop;
+        @(posedge clk) disable iff (!rst_n)
+        (in_valid && in_ready) |=> (!in_ready);
+    endproperty
+    assert_in_ready_drop: assert property(p_in_ready_drop)
+        else $error("FSM VIOLATION: in_ready did not drop after input handshake!");
+
+    // REQ 15 FSM to idle
+    property p_out_valid_drop;
+        @(posedge clk) disable iff (!rst_n)
+        (out_valid && out_ready) |=> (!out_valid);
+    endproperty
+
+    assert_out_valid_drop: assert property(p_out_valid_drop)
+        else $error("FSM VIOLATION: out_valid did not drop after output handshake!");   
+    
+    // REQ 18 input stability
     property p_input_stable_when_stalled;
         @(posedge clk) disable iff (!rst_n || $isunknown(in_ready) || $isunknown(in_valid) || $isunknown(a_in) || $isunknown(b_in))
         (in_valid && !in_ready) |=> (in_valid && $stable(a_in) && $stable(b_in));
     endproperty
 
     assert_input_stable: assert property(p_input_stable_when_stalled)
-        else $error("PROTOCOL VIOLATION: in_valid dropped or inputs changed while stalled!");
+        else $error("PROTOCOL VIOLATION: in_valid dropped or input operands changed while stalled!");
 
 
     property p_no_infinite_hang;
@@ -69,39 +114,10 @@ interface gcd_if(input logic clk, input logic rst_n);
 
     assert_no_infinite_hang: assert property(p_no_infinite_hang)
         else $error("TIMEOUT: Module exceeded maximum cycles without asserting out_valid!");
-
-
-    property p_output_stable;
-        @(posedge clk) disable iff (!rst_n || $isunknown(out_valid) || $isunknown(out_ready) || $isunknown(gcd_out))
-        (out_valid && !out_ready) |=> (out_valid && $stable(gcd_out));
-    endproperty
-
-    assert_output_stable: assert property(p_output_stable)
-        else $error("Protocol Violation: gcd_out changed before out_ready");
-
-    property p_reset_behavior;
-        @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0 && gcd_out == '0);
-    endproperty
-
-    assert_reset: assert property(p_reset_behavior) else $error("Reset behavior failed!");
-
-    property p_reset_state;
-        @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0);
-    endproperty
-    
-    assert_reset_state: assert property(p_reset_state) else $error("Reset state failed!");
-
-    property p_valid_no_drop(valid, ready);
-        @(posedge clk) disable iff (!rst_n)
-        (valid && !ready) |=> valid;
-    endproperty
-
-    assert_in_valid_no_drop: assert property(p_valid_no_drop(in_valid, in_ready));
-    assert_out_valid_no_drop: assert property(p_valid_no_drop(out_valid, out_ready));
 endinterface
 
 package gcd_package;
-    import constants::*;
+    import loc_constants::*;
     import uvm_pkg::*;
 
 
@@ -550,7 +566,7 @@ endpackage : gcd_package
 
 // Testbench top module
 module gcd_testbench;
-    import constants::*;
+    import loc_constants::*;
     import gcd_package::*;
 
     logic clk;
