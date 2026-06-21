@@ -36,7 +36,8 @@ interface gcd_if(input logic clk, input logic rst_n);
         if (rst_n && in_valid && in_ready) begin
             fork
                 begin
-                    int count = 0;
+                    int count;
+                    count = 0;
                     // Count up until the DUT finishes, resets, or times out
                     while (count <= MAX_TIMEOUT) begin
                         @(posedge clk);
@@ -590,7 +591,6 @@ module gcd_testbench;
     end
 
     gcd_if gcd_if_inst(clk, rst_n);
-    initial uvm_config_db#(virtual gcd_if)::set(null, "*", "vif", gcd_if_inst);
 
         // DUT instance
     gcd #(
@@ -608,6 +608,10 @@ module gcd_testbench;
     );
 
     initial begin
+        virtual gcd_if vif = gcd_if_inst;
+
+        uvm_config_db#(virtual gcd_if)::set(null, "*", "vif", vif);
+        
         run_test();
     end
 
