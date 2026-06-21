@@ -47,7 +47,7 @@ interface gcd_if(input logic clk, input logic rst_n);
                     
                     // If the loop finished and out_valid never fired, we have a hang
                     if (count > MAX_TIMEOUT) begin
-                        `uvm_error("CHK", $sformatf("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", MAX_TIMEOUT))
+                        $error("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", MAX_TIMEOUT);
                     end
                 end
             join_none
@@ -257,11 +257,13 @@ package gcd_package;
         virtual function void build_phase(uvm_phase phase);
             super.build_phase(phase);
             if (!uvm_config_db#(virtual gcd_if)::get(this, "", "vif", vif)) begin
-                `uvm_fatal("No virtual interface in DRV", "Virtual interface not set for: " + get_full_name() + ".vif");
+                `uvm_fatal("No virtual interface in DRV", {"Virtual interface not set for: ", get_full_name(), ".vif"});
             end 
         endfunction
 
         task run_phase(uvm_phase phase);
+            gcd_sequence_item tr;
+
             vif.cb.in_valid <= 1'b0;
             vif.cb.out_ready <= 1'b1;
             vif.cb.a_in <= '0;
@@ -369,7 +371,7 @@ package gcd_package;
             super.build_phase(phase);
 
             if (!uvm_config_db#(virtual gcd_if)::get(this, "", "vif", vif)) begin
-                `uvm_fatal("No virtual interface in AGENT", "Virtual interface not set for: " + get_full_name() + ".vif");
+                `uvm_fatal("No virtual interface in AGENT", {"Virtual interface not set for: ", get_full_name(), ".vif"});
             end
 
             
