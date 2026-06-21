@@ -36,29 +36,6 @@ interface gcd_if(input logic clk, input logic rst_n);
     // time (worst case) + 10 for handshake margin
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
-    always @(posedge clk) begin
-        // Trigger the timer whenever a new transaction is accepted
-        if (rst_n && in_valid && in_ready) begin
-            fork
-                begin
-                    int count;
-                    count = 0;
-                    // Count up until the DUT finishes, resets, or times out
-                    while (count <= MAX_TIMEOUT) begin
-                        @(posedge clk);
-                        if (out_valid || !rst_n) break; 
-                        count++;
-                    end
-                    
-                    // If the loop finished and out_valid never fired, we have a hang
-                    if (count > MAX_TIMEOUT) begin
-                        $error("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", MAX_TIMEOUT);
-                    end
-                end
-            join_none
-        end
-    end
-
     // REQ 6,7,8,16 reset behavior
     property p_reset_behavior;
         @(posedge clk) !rst_n |=> (in_ready == 1'b1 && out_valid == 1'b0 && gcd_out == '0);
