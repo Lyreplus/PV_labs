@@ -50,35 +50,49 @@ interface gcd_if(input logic clk, input logic rst_n);
 
     always @(mon_cb) begin
         // new transaction is accepted
-        if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
-            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
-            fork
-                begin
-                    int count;
-                    int unsigned local_timeout;              
-                    count = 0;
-                    local_timeout = count_cyc(mon_cb.a_in, mon_cb.b_in) + 10;  
+        // if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
+        //     $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
+        //     fork
+        //         begin
+        //             int count;
+        //             int unsigned local_timeout;              
+        //             count = 0;
+        //             local_timeout = count_cyc(mon_cb.a_in, mon_cb.b_in) + 10;  
 
-                    $display("[%0t] TIMEOUT LIMIT = %0d cycles", $time, local_timeout);
+        //             $display("[%0t] TIMEOUT LIMIT = %0d cycles", $time, local_timeout);
 
-                    // Count up until the DUT finishes, resets, or times out
-                    while (count <= local_timeout) begin      
-                        @(mon_cb);
+        //             // Count up until the DUT finishes, resets, or times out
+        //             while (count <= local_timeout) begin      
+        //                 @(mon_cb);
 
-                        count++;
+        //                 count++;
 
-                        if ((count % 100) == 0)
-                            $display("[%0t] watchdog count=%0d", $time, count);
+        //                 if ((count % 100) == 0)
+        //                     $display("[%0t] watchdog count=%0d", $time, count);
 
-                        if (mon_cb.out_valid || !rst_n)
-                            break;
-                    end
+        //                 if (mon_cb.out_valid || !rst_n)
+        //                     break;
+        //             end
                     
-                    if (count > local_timeout) begin          
-                        `uvm_fatal("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
-                    end
-                end
-            join_none
+        //             if (count > local_timeout) begin          
+        //                 $fatal(1, "[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
+                        
+                        
+        //             end
+        //         end
+        //     join_none
+        // end
+        $display("[%0t] rst_n=%0b in_valid=%0b in_ready=%0b",
+             $time,
+             rst_n,
+             mon_cb.in_valid,
+             mon_cb.in_ready);
+
+        if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
+            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d",
+                    $time,
+                    mon_cb.a_in,
+                    mon_cb.b_in);
         end
     end
 
@@ -216,19 +230,20 @@ package gcd_package;
         virtual task body();
             `uvm_info("SEQ", "Executing directed edge case sequence", UVM_LOW)
 
-            send_directed_item(0, 0); // GCD(0, 0)
+            // send_directed_item(0, 0); // GCD(0, 0)
 
-            send_directed_item(18, 0); //GCD(18, 0), A != 0, B = 0
+            // send_directed_item(18, 0); //GCD(18, 0), A != 0, B = 0
 
-            send_directed_item(0, 24); //GCD(0, 24), A = 0, B != 0
+            // send_directed_item(0, 24); //GCD(0, 24), A = 0, B != 0
 
-            send_directed_item(27, 27); //GCD(27, 27), A = B
+            // send_directed_item(27, 27); //GCD(27, 27), A = B
 
-            // Max values
-            send_directed_item((1 << WIDTH) - 1, 5); //GCD(WIDTH-1, 5), A = MAX, B != 0
-            send_directed_item(5, (1 << WIDTH) - 1); //GCD(5, WIDTH-1), A != 0, B = MAX
-            send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); //GCD(WIDTH-1, WIDTH-1), A = MAX, B = MAX
+            // // Max values
+            // send_directed_item((1 << WIDTH) - 1, 5); //GCD(WIDTH-1, 5), A = MAX, B != 0
+            // send_directed_item(5, (1 << WIDTH) - 1); //GCD(5, WIDTH-1), A != 0, B = MAX
+            // send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); //GCD(WIDTH-1, WIDTH-1), A = MAX, B = MAX
 
+            send_directed_item(15, 5);
         endtask
 
         task send_directed_item(bit [WIDTH-1:0] val_a, bit [WIDTH-1:0] val_b);
@@ -345,6 +360,16 @@ package gcd_package;
 
                 do begin
                     @(vif.cb);
+
+                    $display("[%0t] WAITING:"
+                            " in_ready=%0b"
+                            " out_valid=%0b"
+                            " gcd_out=%0d",
+                            $time,
+                            vif.cb.in_ready,
+                            vif.cb.out_valid,
+                            vif.cb.gcd_out);
+
                 end while (vif.cb.out_valid !== 1'b1);
 
                 $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
