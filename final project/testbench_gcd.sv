@@ -293,21 +293,25 @@ package gcd_package;
             vif.cb.a_in <= '0;
             vif.cb.b_in <= '0;
 
+            $display("Driver is ready, waiting for reset deassertion...");
             wait (vif.rst_n === 1'b1);
+            $display("Reset deasserted, starting driver!");
             @(vif.cb);
             
             forever begin
                 seq_item_port.get_next_item(tr);
-
+                $display("Got new transaction from sequencer: %s", tr.convert2string());
                 // drive inputs
                 @(vif.cb)
                 vif.cb.a_in <= tr.a;
                 vif.cb.b_in <= tr.b;
                 vif.cb.in_valid <= 1'b1;
 
+
                 // wait input handshake
                 do begin
                     @(vif.cb);
+                    $display("Waiting for input handshake... in_valid: %b, in_ready: %b", vif.cb.in_valid, vif.cb.in_ready);
                 end while (vif.cb.in_ready !== 1'b1); 
 
 
@@ -316,14 +320,19 @@ package gcd_package;
                 // output handshake
                 if (tr.out_ready_delay > 0) begin
                     repeat (tr.out_ready_delay) @(vif.cb);
+                    $display("Delaying out_ready by %0d cycles", tr.out_ready_delay);
                 end
 
                 vif.cb.out_ready <= 1'b1;
 
+                $display("Waiting for output handshake... out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
+
                 do begin
                     @(vif.cb);
+                    $display("Waiting for output handshake... out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
                 end while (vif.cb.out_valid !== 1'b1);
 
+                $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
                 tr.gcd_out = vif.cb.gcd_out;
 
                 vif.cb.out_ready <= 1'b0;
