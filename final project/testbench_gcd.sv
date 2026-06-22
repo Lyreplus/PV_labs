@@ -63,7 +63,7 @@ interface gcd_if(input logic clk, input logic rst_n);
                     end
                     
                     if (count > local_timeout) begin          
-                        $error("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
+                        $fatal("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
                     end
                 end
             join_none
@@ -311,7 +311,6 @@ package gcd_package;
                 // wait input handshake
                 do begin
                     @(vif.cb);
-                    $display("Waiting for input handshake... in_valid: %b, in_ready: %b", vif.cb.in_valid, vif.cb.in_ready);
                 end while (vif.cb.in_ready !== 1'b1); 
 
 
@@ -329,7 +328,6 @@ package gcd_package;
 
                 do begin
                     @(vif.cb);
-                    $display("Waiting for output handshake... out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
                 end while (vif.cb.out_valid !== 1'b1);
 
                 $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
