@@ -55,16 +55,25 @@ interface gcd_if(input logic clk, input logic rst_n);
                     int count;
                     int unsigned local_timeout;              
                     count = 0;
-                    local_timeout = count_cyc(mon.cb.a_in, mon_cb.b_in) + 10;  
+                    local_timeout = count_cyc(mon_cb.a_in, mon_cb.b_in) + 10;  
+
+                    $display("[%0t] TIMEOUT LIMIT = %0d cycles", $time, local_timeout);
+
                     // Count up until the DUT finishes, resets, or times out
                     while (count <= local_timeout) begin      
                         @(mon_cb);
-                        if (mon_cb.out_valid || !rst_n) break; 
+                        
                         count++;
+
+                        if ((count % 100) == 0)
+                            $display("[%0t] watchdog count=%0d", $time, count);
+
+                        if (mon_cb.out_valid || !rst_n)
+                            break;
                     end
                     
                     if (count > local_timeout) begin          
-                        $fatal("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
+                        `uvm_fatal("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
                     end
                 end
             join_none
