@@ -318,50 +318,61 @@ package gcd_package;
             vif.cb.b_in <= '0;
 
             // wait for reset deassertion
-            wait (vif.rst_n === 1'b0);
-            wait (vif.rst_n === 1'b1);
-            $display("Reset deasserted, starting driver!");
-            @(vif.cb);
+            // wait (vif.rst_n === 1'b0);
+            // wait (vif.rst_n === 1'b1);
+            // $display("Reset deasserted, starting driver!");
+            // @(vif.cb);
             
             forever begin
+                wait (vif.rst_n === 1'b1);
                 seq_item_port.get_next_item(tr);
+
                 $display("Got new transaction from sequencer: %s", tr.convert2string());
                 // drive inputs
-                @(vif.cb)
-                $display("[%0t] DRIVING: a=%0d b=%0d in_valid=%0b", $time, tr.a, tr.b, 1'b1);
-                vif.cb.a_in <= tr.a;
-                vif.cb.b_in <= tr.b;
-                vif.cb.in_valid <= 1'b1;
+                fork
+                    begin
+                        @(vif.cb)
+                        $display("[%0t] DRIVING: a=%0d b=%0d in_valid=%0b", $time, tr.a, tr.b, 1'b1);
+                        vif.cb.a_in <= tr.a;
+                        vif.cb.b_in <= tr.b;
+                        vif.cb.in_valid <= 1'b1;
+
+                        // wait input handshake
+                        do begin
+                            @(vif.cb);
+                        end while (vif.cb.in_ready !== 1'b1); 
+
+                        $display("[%0t] INPUT HANDSHAKE COMPLETE", $time);
+
+                        vif.cb.in_valid <= 1'b0;
 
 
-                // wait input handshake
-                do begin
-                    @(vif.cb);
-                end while (vif.cb.in_ready !== 1'b1); 
+                        // output handshake
+                        if (tr.out_ready_delay > 0) begin
+                            repeat (tr.out_ready_delay) @(vif.cb);
+                            $display("Delaying out_ready by %0d cycles", tr.out_ready_delay);
+                        end
 
-                $display("[%0t] INPUT HANDSHAKE COMPLETE", $time);
+                        vif.cb.out_ready <= 1'b1;
 
-                vif.cb.in_valid <= 1'b0;
+                        $display("Waiting for output handshake... out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
 
+                        do begin
+                            @(vif.cb);
+                        end while (vif.cb.out_valid !== 1'b1);
 
-                // output handshake
-                if (tr.out_ready_delay > 0) begin
-                    repeat (tr.out_ready_delay) @(vif.cb);
-                    $display("Delaying out_ready by %0d cycles", tr.out_ready_delay);
-                end
+                        $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
 
-                vif.cb.out_ready <= 1'b1;
-
-                $display("Waiting for output handshake... out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
-
-                do begin
-                    @(vif.cb);
-                end while (vif.cb.out_valid !== 1'b1);
-
-                $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
-                tr.gcd_out = vif.cb.gcd_out;
-
-                vif.cb.out_ready <= 1'b0;
+                        tr.gcd_out = vif.cb.gcd_out;
+                        vif.cb.out_ready <= 1'b0;
+                    end
+                    begin //clean up pins
+                        @(negedge vif.rst_n)
+                        vif.cb.in_valid <= 1'b0;
+                        vif.cb.out_ready <= 1'b0;
+                    end
+                join_any
+                disable fork;                
 
                 seq_item_port.item_done();
             end
@@ -391,27 +402,36 @@ package gcd_package;
             gcd_sequence_item tr;
 
             forever begin
+                wait (vif.rst_n === 1'b1);
                 tr = gcd_sequence_item::type_id::create("tr", this);
 
-                do begin
-                    @(vif.mon_cb);
-                end while (!(vif.mon_cb.in_valid === 1'b1 && vif.mon_cb.in_ready === 1'b1));
+                fork
+                    begin
+                        do begin
+                            @(vif.mon_cb);
+                        end while (!(vif.mon_cb.in_valid === 1'b1 && vif.mon_cb.in_ready === 1'b1));
 
-                if ($isunknown(vif.mon_cb.a_in) || $isunknown(vif.mon_cb.b_in)) begin
-                    `uvm_error("MON", "Unknown X/Z value detected on a and b input operands!")
-                end
+                        if ($isunknown(vif.mon_cb.a_in) || $isunknown(vif.mon_cb.b_in)) begin
+                            `uvm_error("MON", "Unknown X/Z value detected on a and b input operands!")
+                        end
 
-                tr.a = vif.mon_cb.a_in;
-                tr.b = vif.mon_cb.b_in;
+                        tr.a = vif.mon_cb.a_in;
+                        tr.b = vif.mon_cb.b_in;
 
-                do begin
-                    @(vif.mon_cb);
-                end while (!(vif.mon_cb.out_valid === 1'b1 && vif.mon_cb.out_ready === 1'b1));
+                        do begin
+                            @(vif.mon_cb);
+                        end while (!(vif.mon_cb.out_valid === 1'b1 && vif.mon_cb.out_ready === 1'b1));
 
-                tr.gcd_out = vif.mon_cb.gcd_out;
-                // log statement
-                `uvm_info("MON", {"Catched transaction: ", tr.convert2string()}, UVM_LOW)
-                analysis_port.write(tr);
+                        tr.gcd_out = vif.mon_cb.gcd_out;
+                        // log statement
+                        `uvm_info("MON", {"Catched transaction: ", tr.convert2string()}, UVM_LOW)
+                        analysis_port.write(tr); 
+                    end
+                    begin //reset monitor
+                        @(negedge vif.rst_n);
+                    end
+                join_any
+                disable fork;
             end
         endtask
     endclass
@@ -676,6 +696,25 @@ module testbench_gcd;
         uvm_config_db#(virtual gcd_if)::set(null, "*", "vif", vif);
 
         run_test();
+    end
+
+    // reset test in the middle of a transaction
+    initial begin
+        rst_n = 0;
+        repeat (5) @(posedge clk);
+        rst_n = 1;
+
+        #10000;
+        
+        @(negedge gcd_if_inst.in_ready);
+        repeat(2) @(posedge clk); // 2 cycles to be in the middle of transaction
+        
+
+        $display("--- INJECTING MID-TRANSACTION RESET ---");
+        rst_n = 0;
+        repeat (5) @(posedge clk);
+        rst_n = 1;
+        $display("--- DUT RECOVERED FROM RESET ---");
     end
 
 endmodule : testbench_gcd
