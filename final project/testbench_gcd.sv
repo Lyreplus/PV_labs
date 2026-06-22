@@ -361,14 +361,7 @@ package gcd_package;
                 do begin
                     @(vif.cb);
 
-                    $display("[%0t] WAITING:"
-                            " in_ready=%0b"
-                            " out_valid=%0b"
-                            " gcd_out=%0d",
-                            $time,
-                            vif.cb.in_ready,
-                            vif.cb.out_valid,
-                            vif.cb.gcd_out);
+                    $display("[%0t] WAITING: in_ready=%0b out_valid=%0b gcd_out=%0d", $time, vif.cb.in_ready. vif.cb.out_valid, vif.cb.gcd_out);
 
                 end while (vif.cb.out_valid !== 1'b1);
 
