@@ -49,6 +49,7 @@ interface gcd_if(input logic clk, input logic rst_n);
     always @(posedge clk) begin
         // new transaction is accepted
         if (rst_n && in_valid && in_ready) begin
+            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, a_in, b_in);
             fork
                 begin
                     int count;
