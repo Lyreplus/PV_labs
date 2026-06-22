@@ -49,39 +49,35 @@ interface gcd_if(input logic clk, input logic rst_n);
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
     always @(mon_cb) begin
-        // new transaction is accepted
-        // if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
-        //     $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
-        //     fork
-        //         begin
-        //             int count;
-        //             int unsigned local_timeout;              
-        //             count = 0;
-        //             local_timeout = count_cyc(mon_cb.a_in, mon_cb.b_in) + 10;  
-
-        //             $display("[%0t] TIMEOUT LIMIT = %0d cycles", $time, local_timeout);
-
-        //             // Count up until the DUT finishes, resets, or times out
-        //             while (count <= local_timeout) begin      
-        //                 @(mon_cb);
-
-        //                 count++;
-
-        //                 if ((count % 100) == 0)
-        //                     $display("[%0t] watchdog count=%0d", $time, count);
-
-        //                 if (mon_cb.out_valid || !rst_n)
-        //                     break;
-        //             end
+         new transaction is accepted
+         if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
+             $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
+             fork
+                 begin
+                    int count;
+                    int unsigned local_timeout;              
                     
-        //             if (count > local_timeout) begin          
-        //                 $fatal(1, "[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
-                        
-                        
-        //             end
-        //         end
-        //     join_none
-        // end
+                    count = 0;
+                    local_timeout = count_cyc(mon_cb.a_in, mon_cb.b_in) + 10;  
+                    
+                    $display("[%0t] TIMEOUT LIMIT = %0d cycles", $time, local_timeout);
+
+                    // Count up until the DUT finishes, resets, or times out
+                    while (count <= local_timeout) begin      
+                        @(mon_cb);
+                        count++;
+                        if ((count % 100) == 0)
+                            $display("[%0t] watchdog count=%0d", $time, count);
+                        if (mon_cb.out_valid || !rst_n)
+                            break;
+                    end
+                  
+                    if (count > local_timeout) begin          
+                        $fatal(1, "[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
+                    end
+                end
+            join_none
+        end
 
         if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
             $display("[%0t] WATCHDOG ARMED a=%0d b=%0d",
@@ -225,20 +221,18 @@ package gcd_package;
         virtual task body();
             `uvm_info("SEQ", "Executing directed edge case sequence", UVM_LOW)
 
-            // send_directed_item(0, 0); // GCD(0, 0)
+            send_directed_item(0, 0); // GCD(0, 0)
 
-            // send_directed_item(18, 0); //GCD(18, 0), A != 0, B = 0
+            send_directed_item(18, 0); //GCD(18, 0), A != 0, B = 0
 
-            // send_directed_item(0, 24); //GCD(0, 24), A = 0, B != 0
+            send_directed_item(0, 24); //GCD(0, 24), A = 0, B != 0
 
-            // send_directed_item(27, 27); //GCD(27, 27), A = B
+            send_directed_item(27, 27); //GCD(27, 27), A = B
 
-            // // Max values
-            // send_directed_item((1 << WIDTH) - 1, 5); //GCD(WIDTH-1, 5), A = MAX, B != 0
-            // send_directed_item(5, (1 << WIDTH) - 1); //GCD(5, WIDTH-1), A != 0, B = MAX
-            // send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); //GCD(WIDTH-1, WIDTH-1), A = MAX, B = MAX
-
-            send_directed_item(15, 5);
+            // Max values
+            send_directed_item((1 << WIDTH) - 1, 5); //GCD(WIDTH-1, 5), A = MAX, B != 0
+            send_directed_item(5, (1 << WIDTH) - 1); //GCD(5, WIDTH-1), A != 0, B = MAX
+            send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); //GCD(WIDTH-1, WIDTH-1), A = MAX, B = MAX
         endtask
 
         task send_directed_item(bit [WIDTH-1:0] val_a, bit [WIDTH-1:0] val_b);
@@ -320,6 +314,7 @@ package gcd_package;
             vif.cb.a_in <= '0;
             vif.cb.b_in <= '0;
 
+            // wait for reset deassertion
             wait (vif.rst_n === 1'b0);
             wait (vif.rst_n === 1'b1);
             $display("Reset deasserted, starting driver!");
