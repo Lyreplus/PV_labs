@@ -337,6 +337,7 @@ package gcd_package;
             vif.cb.b_in <= '0;
 
             $display("Driver is ready, waiting for reset deassertion...");
+            wait (vif.rst_n === 1'b0);
             wait (vif.rst_n === 1'b1);
             $display("Reset deasserted, starting driver!");
             @(vif.cb);
@@ -375,7 +376,7 @@ package gcd_package;
                 do begin
                     @(vif.cb);
 
-                    $display("[%0t] WAITING: in_ready=%0b out_valid=%0b gcd_out=%0d", $time, vif.cb.in_ready. vif.cb.out_valid, vif.cb.gcd_out);
+                    $display("[%0t] WAITING: in_ready=%0b out_valid=%0b gcd_out=%0d", $time, vif.cb.in_ready, vif.cb.out_valid, vif.cb.gcd_out);
 
                 end while (vif.cb.out_valid !== 1'b1);
 
@@ -669,12 +670,9 @@ module testbench_gcd;
     end
 
     initial begin
-        rst_n = 1;
-        @(posedge clk);
         rst_n = 0;
         repeat (5) @(posedge clk);
         rst_n = 1;
-        @(posedge clk);
     end
 
     gcd_if gcd_if_inst(clk, rst_n);
