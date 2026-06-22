@@ -35,6 +35,17 @@ interface gcd_if(input logic clk, input logic rst_n);
         input in_valid, in_ready, a_in, b_in, out_valid, out_ready, gcd_out;
     endclocking
 
+    always @(posedge clk) begin
+    $display("[%0t] RAW DUT: in_valid=%0b in_ready=%0b out_valid=%0b out_ready=%0b a=%0d b=%0d",
+             $time,
+             in_valid,
+             in_ready,
+             out_valid,
+             out_ready,
+             a_in,
+             b_in);
+    end
+
     function automatic int unsigned count_cyc(bit [WIDTH-1:0] a, bit [WIDTH-1:0] b);
         int unsigned counter = 0;
         if (a == 0 || b == 0 || a == b) return 1;
@@ -335,6 +346,7 @@ package gcd_package;
                 $display("Got new transaction from sequencer: %s", tr.convert2string());
                 // drive inputs
                 @(vif.cb)
+                $display("[%0t] DRIVING: a=%0d b=%0d in_valid=%0b", $time, tr.a, tr.b, 1'b1);
                 vif.cb.a_in <= tr.a;
                 vif.cb.b_in <= tr.b;
                 vif.cb.in_valid <= 1'b1;
@@ -345,8 +357,10 @@ package gcd_package;
                     @(vif.cb);
                 end while (vif.cb.in_ready !== 1'b1); 
 
+                $display("[%0t] INPUT HANDSHAKE COMPLETE", $time);
 
                 vif.cb.in_valid <= 1'b0;
+
 
                 // output handshake
                 if (tr.out_ready_delay > 0) begin
