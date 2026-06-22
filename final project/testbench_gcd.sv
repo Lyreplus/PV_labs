@@ -176,8 +176,8 @@ package gcd_package;
         }
 
         constraint c_reasonable_range {
-            a inside {[0:1000]};
-            b inside {[0:1000]};
+            a inside {[0:(1<<WIDTH-1)]};
+            b inside {[0:(1<<WIDTH-1)]};
         }
 
         function new(string name = "gcd_sequence_item");
@@ -233,6 +233,9 @@ package gcd_package;
             send_directed_item((1 << WIDTH) - 1, 5); //GCD(WIDTH-1, 5), A = MAX, B != 0
             send_directed_item(5, (1 << WIDTH) - 1); //GCD(5, WIDTH-1), A != 0, B = MAX
             send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); //GCD(WIDTH-1, WIDTH-1), A = MAX, B = MAX
+
+            send_directed_item(0, (1 << WIDTH) - 1); // GCD(0, MAX)
+            send_directed_item((1 << WIDTH) - 1, 0); // GCD(MAX, 0)
         endtask
 
         task send_directed_item(bit [WIDTH-1:0] val_a, bit [WIDTH-1:0] val_b);

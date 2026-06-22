@@ -13,7 +13,7 @@ setup:
 	vlib work
 	vmap work ./work
 	vlog $(VFLAGS) $(UNIT).sv
-	vlog $(VFLAGS) $(TESTBENCH)_$(UNIT).sv
+	vlog +acc $(TESTBENCH)_$(UNIT).sv
 
 run_all: setup 
 	$(MAKE) run TEST=gcd_bringup_test UCDB_OUT=bringup.ucdb
