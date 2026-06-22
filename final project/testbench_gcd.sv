@@ -46,20 +46,20 @@ interface gcd_if(input logic clk, input logic rst_n);
     // time (worst case) + 10 for handshake margin
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
-    always @(posedge clk) begin
+    always @(mon_cb) begin
         // new transaction is accepted
-        if (rst_n && in_valid && in_ready) begin
-            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, a_in, b_in);
+        if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
+            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
             fork
                 begin
                     int count;
                     int unsigned local_timeout;              
                     count = 0;
-                    local_timeout = count_cyc(a_in, b_in) + 10;  
+                    local_timeout = count_cyc(mon.cb.a_in, mon_cb.b_in) + 10;  
                     // Count up until the DUT finishes, resets, or times out
                     while (count <= local_timeout) begin      
-                        @(posedge clk);
-                        if (out_valid || !rst_n) break; 
+                        @(mon_cb);
+                        if (mon_cb.out_valid || !rst_n) break; 
                         count++;
                     end
                     
@@ -69,6 +69,11 @@ interface gcd_if(input logic clk, input logic rst_n);
                 end
             join_none
         end
+    end
+
+    always @(mon_cb) begin
+        if (mon_cb.in_valid && mon_cb.in_ready)
+            $display("[%0t] HANDSHAKE OBSERVED", $time);
     end
 
     // REQ 6,7,8,16 reset behavior
