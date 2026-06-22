@@ -35,17 +35,6 @@ interface gcd_if(input logic clk, input logic rst_n);
         input in_valid, in_ready, a_in, b_in, out_valid, out_ready, gcd_out;
     endclocking
 
-    always @(posedge clk) begin
-    $display("[%0t] RAW DUT: in_valid=%0b in_ready=%0b out_valid=%0b out_ready=%0b a=%0d b=%0d",
-             $time,
-             in_valid,
-             in_ready,
-             out_valid,
-             out_ready,
-             a_in,
-             b_in);
-    end
-
     function automatic int unsigned count_cyc(bit [WIDTH-1:0] a, bit [WIDTH-1:0] b);
         int unsigned counter = 0;
         if (a == 0 || b == 0 || a == b) return 1;
@@ -93,11 +82,6 @@ interface gcd_if(input logic clk, input logic rst_n);
         //         end
         //     join_none
         // end
-        $display("[%0t] rst_n=%0b in_valid=%0b in_ready=%0b",
-             $time,
-             rst_n,
-             mon_cb.in_valid,
-             mon_cb.in_ready);
 
         if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
             $display("[%0t] WATCHDOG ARMED a=%0d b=%0d",
@@ -336,7 +320,6 @@ package gcd_package;
             vif.cb.a_in <= '0;
             vif.cb.b_in <= '0;
 
-            $display("Driver is ready, waiting for reset deassertion...");
             wait (vif.rst_n === 1'b0);
             wait (vif.rst_n === 1'b1);
             $display("Reset deasserted, starting driver!");
@@ -375,9 +358,6 @@ package gcd_package;
 
                 do begin
                     @(vif.cb);
-
-                    $display("[%0t] WAITING: in_ready=%0b out_valid=%0b gcd_out=%0d", $time, vif.cb.in_ready, vif.cb.out_valid, vif.cb.gcd_out);
-
                 end while (vif.cb.out_valid !== 1'b1);
 
                 $display("Output handshake completed! out_valid: %b, out_ready: %b", vif.cb.out_valid, vif.cb.out_ready);
