@@ -33,37 +33,36 @@ interface gcd_if(input logic clk, input logic rst_n);
         input in_valid, in_ready, a_in, b_in, out_valid, out_ready, gcd_out;
     endclocking
 
-    function automatic int unsigned exp_cycles(bit [WIDTH-1:0] a, bit [WIDTH-1:0] b);
-        int unsigned cycles = 0;
+    function automatic int unsigned count_cyc(bit [WIDTH-1:0] a, bit [WIDTH-1:0] b);
+        int unsigned counter = 0;
         if (a == 0 || b == 0 || a == b) return 1;
         while (a != 0 && b != 0 && a != b) begin
             if (a > b) a -= b; else b -= a;
-            cycles++;
+            counter++;
         end
-        return cycles;
+        return counter;
     endfunction
 
     // time (worst case) + 10 for handshake margin
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
     always @(posedge clk) begin
-        // Trigger the timer whenever a new transaction is accepted
+        // new transaction is accepted
         if (rst_n && in_valid && in_ready) begin
             fork
                 begin
                     int count;
-                    int unsigned local_timeout;              // <-- ADD this line
+                    int unsigned local_timeout;              
                     count = 0;
-                    local_timeout = exp_cycles(a_in, b_in) + 10;  // <-- ADD this line
+                    local_timeout = count_cyc(a_in, b_in) + 10;  
                     // Count up until the DUT finishes, resets, or times out
-                    while (count <= local_timeout) begin      // <-- CHANGE: was MAX_TIMEOUT
+                    while (count <= local_timeout) begin      
                         @(posedge clk);
                         if (out_valid || !rst_n) break; 
                         count++;
                     end
                     
-                    // If the loop finished and out_valid never fired, we have a hang
-                    if (count > local_timeout) begin           // <-- CHANGE: was MAX_TIMEOUT
+                    if (count > local_timeout) begin          
                         $error("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
                     end
                 end
@@ -248,11 +247,14 @@ package gcd_package;
 
             for (int i = 0; i < number_transactions; i++) begin
                 req = gcd_sequence_item::type_id::create("req");
+                $display("Randomizing transaction %0d/%0d", i+1, number_transactions);
                 start_item(req);
                 if (!req.randomize()) begin
                     `uvm_error("SEQ", "Randomization failed for transaction")
                 end
+                $$display("Finishing transactions");
                 finish_item(req);
+                $display("Transactions finished");
             end
         endtask
     endclass
@@ -536,7 +538,7 @@ package gcd_package;
             phase.phase_done.set_drain_time(this, 2000ns); 
         endtask
 
-        // print topology, debugging sake
+        // print topology, debugging
         virtual function void end_of_elaboration_phase(uvm_phase phase);
             uvm_top.print_topology();
         endfunction
