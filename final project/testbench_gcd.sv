@@ -49,11 +49,11 @@ interface gcd_if(input logic clk, input logic rst_n);
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
 
     always @(mon_cb) begin
-         new transaction is accepted
-         if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
-             $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
-             fork
-                 begin
+        // new transaction is accepted
+        if (rst_n && mon_cb.in_valid && mon_cb.in_ready) begin
+            $display("[%0t] WATCHDOG ARMED a=%0d b=%0d", $time, mon_cb.a_in, mon_cb.b_in);
+            fork
+                begin
                     int count;
                     int unsigned local_timeout;              
                     
