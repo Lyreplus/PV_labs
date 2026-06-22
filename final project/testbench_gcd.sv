@@ -33,8 +33,43 @@ interface gcd_if(input logic clk, input logic rst_n);
         input in_valid, in_ready, a_in, b_in, out_valid, out_ready, gcd_out;
     endclocking
 
+    function automatic int unsigned exp_cycles(bit [WIDTH-1:0] a, bit [WIDTH-1:0] b);
+        int unsigned cycles = 0;
+        if (a == 0 || b == 0 || a == b) return 1;
+        while (a != 0 && b != 0 && a != b) begin
+            if (a > b) a -= b; else b -= a;
+            cycles++;
+        end
+        return cycles;
+    endfunction
+
     // time (worst case) + 10 for handshake margin
     localparam int unsigned MAX_TIMEOUT = (1 << WIDTH) + 10;
+
+    always @(posedge clk) begin
+        // Trigger the timer whenever a new transaction is accepted
+        if (rst_n && in_valid && in_ready) begin
+            fork
+                begin
+                    int count;
+                    int unsigned local_timeout;              // <-- ADD this line
+                    count = 0;
+                    local_timeout = exp_cycles(a_in, b_in) + 10;  // <-- ADD this line
+                    // Count up until the DUT finishes, resets, or times out
+                    while (count <= local_timeout) begin      // <-- CHANGE: was MAX_TIMEOUT
+                        @(posedge clk);
+                        if (out_valid || !rst_n) break; 
+                        count++;
+                    end
+                    
+                    // If the loop finished and out_valid never fired, we have a hang
+                    if (count > local_timeout) begin           // <-- CHANGE: was MAX_TIMEOUT
+                        $error("[TIMEOUT] DUT hung! Exceeded max theoretical cycles (%0d)", local_timeout);
+                    end
+                end
+            join_none
+        end
+    end
 
     // REQ 6,7,8,16 reset behavior
     property p_reset_behavior;
@@ -117,6 +152,11 @@ package gcd_package;
 
         constraint c_ready_delay {
             out_ready_delay dist {0 := 80, 1 := 20}; // mostly ready immediately, sometimes stalled
+        }
+
+        constraint c_reasonable_range {
+            a inside {[0:1000]};
+            b inside {[0:1000]};
         }
 
         function new(string name = "gcd_sequence_item");
