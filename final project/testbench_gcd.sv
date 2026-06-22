@@ -252,7 +252,7 @@ package gcd_package;
                 if (!req.randomize()) begin
                     `uvm_error("SEQ", "Randomization failed for transaction")
                 end
-                $$display("Finishing transactions");
+                $display("Finishing transactions");
                 finish_item(req);
                 $display("Transactions finished");
             end
@@ -289,9 +289,12 @@ package gcd_package;
             gcd_sequence_item tr;
 
             vif.cb.in_valid <= 1'b0;
-            vif.cb.out_ready <= 1'b1;
+            vif.cb.out_ready <= 1'b0;
             vif.cb.a_in <= '0;
             vif.cb.b_in <= '0;
+
+            wait (vif.rst_n === 1'b1);
+            @(vif.cb);
             
             forever begin
                 seq_item_port.get_next_item(tr);
