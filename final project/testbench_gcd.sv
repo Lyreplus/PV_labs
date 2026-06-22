@@ -331,6 +331,7 @@ package gcd_package;
                 // drive inputs
                 fork
                     begin
+                        @(vif.cb);
                         $display("[%0t] DRIVING: a=%0d b=%0d in_valid=%0b", $time, tr.a, tr.b, 1'b1);
                         vif.cb.a_in <= tr.a;
                         vif.cb.b_in <= tr.b;
@@ -343,7 +344,7 @@ package gcd_package;
 
                         $display("[%0t] INPUT HANDSHAKE COMPLETE", $time);
 
-                        vif.cb.in_valid <= 1'b0;
+                        // vif.cb.in_valid <= 1'b0;
 
 
                         // output handshake
@@ -364,6 +365,12 @@ package gcd_package;
 
                         tr.gcd_out = vif.cb.gcd_out;
                         vif.cb.out_ready <= 1'b0;
+
+                        // 3. Wait for the DUT to return to IDLE, THEN drop in_valid safely!
+                        do begin
+                            @(vif.cb);
+                        end while (vif.cb.in_ready !== 1'b1);
+                        vif.cb.in_valid <= 1'b0;
                     end
                     begin //clean up pins
                         @(negedge vif.rst_n)
@@ -491,14 +498,14 @@ package gcd_package;
 
             cp_a: coverpoint cov_transaction.a {
                 bins zero = {0};
-                bins max  = {(1<<WIDTH)-1}; // 2^(WIDTH)-1
-                bins others = {[1 : (1<<WIDTH)-2]};
+                bins max  = {((1<<WIDTH)-1)}; // 2^(WIDTH)-1
+                bins others = {[1 : ((1<<WIDTH)-2)]};
             }
 
             cp_b: coverpoint cov_transaction.b {
                 bins zero = {0};
-                bins max  = {(1<<WIDTH)-1}; // 2^(WIDTH)-1
-                bins others = {[1 : (1<<WIDTH)-2]};
+                bins max  = {((1<<WIDTH)-1)}; // 2^(WIDTH)-1
+                bins others = {[1 : ((1<<WIDTH)-2)]};
             }
 
             cross_a_b: cross cp_a, cp_b;
