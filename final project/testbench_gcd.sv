@@ -167,17 +167,17 @@ package gcd_package;
         rand bit [15:0] a;
         rand bit [15:0] b;
         
-        rand bit out_ready_delay; 
+        rand int out_ready_delay; 
 
         bit [15:0] gcd_out;
 
         constraint c_ready_delay {
-            out_ready_delay dist {0 := 80, 1 := 20}; // mostly ready immediately, sometimes stalled
+            out_ready_delay dist {0 := 50, [2:5] := 50}; // mostly ready immediately, sometimes stalled
         }
 
         constraint c_reasonable_range {
-            a inside {[0:(1<<WIDTH-1)]};
-            b inside {[0:(1<<WIDTH-1)]};
+            a inside {[0:((1<<WIDTH)-1)]};
+            b inside {[0:((1<<WIDTH)-1)]};
         }
 
         function new(string name = "gcd_sequence_item");
@@ -331,7 +331,6 @@ package gcd_package;
                 // drive inputs
                 fork
                     begin
-                        @(vif.cb)
                         $display("[%0t] DRIVING: a=%0d b=%0d in_valid=%0b", $time, tr.a, tr.b, 1'b1);
                         vif.cb.a_in <= tr.a;
                         vif.cb.b_in <= tr.b;
