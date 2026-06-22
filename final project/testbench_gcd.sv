@@ -10,6 +10,8 @@ import loc_constants::*;
 
 // Interface
 interface gcd_if(input logic clk, input logic rst_n);
+    import uvm_pkg::*;
+
     // input
     logic               in_valid;
     logic               in_ready;
@@ -62,7 +64,7 @@ interface gcd_if(input logic clk, input logic rst_n);
                     // Count up until the DUT finishes, resets, or times out
                     while (count <= local_timeout) begin      
                         @(mon_cb);
-                        
+
                         count++;
 
                         if ((count % 100) == 0)
