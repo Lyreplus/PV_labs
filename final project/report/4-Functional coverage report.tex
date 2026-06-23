@@ -1,6 +1,7 @@
+\newpage
 \section{Functional Coverage Report}
 
-The verification closure criteria targeted high structural and functional coverage metrics to ensure both protocol compliance and mathematical accuracy. The following table summarizes the overall coverage extracted from the QuestaSim UCDB reports across the testbench and DUT instances.
+The following table summarizes the overall coverage extracted from the QuestaSim UCDB reports across the testbench and DUT instances.
 
 \begin{table}[H]
     \centering
@@ -20,22 +21,57 @@ The verification closure criteria targeted high structural and functional covera
     \label{tab:coverage_summary}
 \end{table}
 
-\subsection{Covergroup Coverage Analysis}
-The functional coverage model (\texttt{gcd\_cg}) defined 18 bins to track operand edge cases, mathematical states ($A > B$, $A = B$), and cross-coverage between operands. The environment successfully hit 17 of 18 bins (94.44\%). 
+These results have been obtained with a Makefile that runs all the tests and merges the UCDB files into a single coverage database. The relevant part of the Makefile are shown below:
 
-The single missed bin was the cross-coverage scenario between \texttt{a = others} and \texttt{b = max}. Upon reviewing the directed test sequences, the stimulus for this exact scenario (\texttt{send\_directed\_item(5, MAX)}) is explicitly generated and driven into the DUT. The absence of this hit in the scoreboard's covergroup is hypothesized to be a simulation drain-time synchronization issue; the testbench likely dropped the UVM objection and terminated the simulation before the monitor could capture the final output handshake and write the transaction to the scoreboard for sampling. 
+\begin{minted}[frame=single,framesep=10pt,breaklines]{bash}
+setup:
+	vlib work
+	vmap work ./work
+	vlog $(VFLAGS) $(UNIT).sv
+	vlog +acc $(TESTBENCH)_$(UNIT).sv
+
+run_all: setup 
+	$(MAKE) run TEST=gcd_smoke_test UCDB_OUT=smoke.ucdb
+	$(MAKE) run TEST=gcd_directed_test UCDB_OUT=directed.ucdb
+	$(MAKE) run TEST=gcd_random_test UCDB_OUT=random.ucdb
+	vcover merge gcd_cov.ucdb bringup.ucdb directed.ucdb random.ucdb
+
+report: 
+	vcover report -details -output gcd_cov_report.txt gcd_cov.ucdb
+	vcover report gcd_cov.ucdb >> gcd_cov_report.txt
+\end{minted}
+
+In any case, these are the final coverage percentages:
+\begin{verbatim}
+TOTAL COVERGROUP COVERAGE: 97.77%  COVERGROUP TYPES: 1
+ 
+TOTAL ASSERTION COVERAGE: 75.00%  ASSERTIONS: 8
+ 
+Total Coverage By Instance (filtered view): 91.60%
+\end{verbatim}
+
+\subsection{Covergroup Coverage Analysis}
+The functional coverage model (\texttt{gcd\_cg}) defined 18 bins to track operand edge cases, mathematical states ($A > B$, $A = B$), and cross-coverage between operands. We can observe that the environment hit 17 of 18 bins (94.44\%). 
+
+The single missed bin was the cross-coverage scenario between \texttt{a = others} and \texttt{b = max}. Looking at the extended coverage report, it confirms this miss, displaying the "ZERO" keyword for this specific bin, indicating it was never sampled by the scoreboard. 
+
+However, as showed before, the stimulus for this exact scenario (\texttt{send\_directed\_item(5, (1 << WIDTH) - 1)}) is explicitly generated and driven into the DUT. 
+
+Because this specific transaction is injected near the very end of the directed sequence, I hypothesize that the absence of this hit to be a simulation drain-time synchronization issue. The testbench likely dropped the UVM objection and terminated the simulation before the DUT could finish computing the result, preventing the monitor from capturing the final output handshake and passing the transaction to the scoreboard for sampling.
 
 \subsection{Assertion Coverage Analysis}
-Assertion coverage reached 75.00\%, with 6 out of 8 protocol monitors passing successfully throughout the test suites. The two missed assertions were \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_input\_stable}. 
+Assertion coverage reached 75.00\%, with 6 out of 8 protocol monitors (properties) passing successfully throughout the test suites. The two missed assertions were \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_input\_stable}. 
 
-Both of these SVAs evaluate producer compliance when the DUT stalls the input channel (\texttt{in\_valid == 1} while \texttt{in\_ready == 0}). However, the UVM driver is designed to be fully compliant and strictly sequential: it waits for the DUT to explicitly return to the \texttt{IDLE} state (\texttt{in\_ready == 1}) before driving the next valid sequence item. Because the driver never attempts to force a transaction while the DUT is processing, the stall precondition is mathematically impossible to reach in the current architecture. To trigger these assertions, an error-injection sequence would be required.
+Both of these SVA evaluate producer compliance when the DUT stalls the input channel (\texttt{in\_valid == 1} while \texttt{in\_ready == 0}). However, the UVM driver is designed to be  compliant and sequential: it waits for the DUT to explicitly return to the \texttt{IDLE} state (\texttt{in\_ready == 1}) before driving the next valid sequence item. Because the driver never attempts to force a transaction while the DUT is processing, the stall precondition is impossible to reach in the current architecture. To trigger these assertions, an error-injection sequence would be required.
 
 \subsection{Branch and Structural Coverage Analysis}
-Branch coverage reached an excellent 90.90\%. Analysis of the uncovered branches reveals that they reside within the \texttt{RUN} state's subtractive loop. The RTL evaluates \texttt{if (a\_reg > b\_reg)} and \texttt{else if (b\_reg > a\_reg)}. The missing branch is the implicit \texttt{else} condition (where \texttt{a\_reg == b\_reg}). 
+Branch coverage reached 90.90\%. Analysis of the uncovered branches reveals that they are within the subtractive loop of the \texttt{RUN} state. The RTL evaluates \texttt{if (a\_reg > b\_reg)} and \texttt{else if (b\_reg > a\_reg)}. The missing branch is the implicit \texttt{else} condition (where \texttt{a\_reg == b\_reg}). 
 
-This miss is a byproduct of optimized RTL design rather than a verification hole. The FSM is coded to transition immediately to \texttt{DONE} on the cycle where the next-state values are equal (\texttt{a\_next == b\_next}). Therefore, the values are never registered as equal while remaining inside the \texttt{RUN} state, rendering the implicit \texttt{else} branch structurally unreachable.
+This miss is a result of the RTL design rather than a verification hole.
+
+This FSM is coded to transition immediately to \texttt{DONE} on the cycle where the next state values are equal (\texttt{a\_next == b\_next}). Therefore, the values are never registered as equal, while remaining inside the \texttt{RUN} state, making the implicit \texttt{else} branch structurally unreachable.
 
 \subsection{FSM Transition Verification}
 All 5 defined state transitions (100\%) were successfully covered. Standard operational transitions (\texttt{IDLE $\rightarrow$ RUN}, \texttt{RUN $\rightarrow$ DONE}, and \texttt{DONE $\rightarrow$ IDLE}) were heavily exercised by the constrained random sequences. The early-exit transition (\texttt{IDLE $\rightarrow$ DONE}) was explicitly hit by the directed edge-case tests.
 
-The most difficult transition to verify was the mid-calculation recovery (\texttt{RUN $\rightarrow$ IDLE}). To achieve this, a hardcoded procedural block was injected into the static top module. By using a \texttt{fork...join\_any} structure, the testbench monitors the \texttt{in\_ready} signal, waits for it to drop (indicating the DUT has entered the \texttt{RUN} state), delays for a few cycles, and then manually asserts \texttt{rst\_n = 0}. This successfully proved the DUT's ability to safely abort an active calculation and reset its datapath.
+The most difficult transition to verify was the recovery during calculation (\texttt{RUN $\rightarrow$ IDLE}). To achieve this, I injected a hardcoded procedural block into the static top module. By using a \texttt{fork...join\_any} structure, the testbench monitors the \texttt{in\_ready} signal, waits for it to drop (indicating the DUT has entered the \texttt{RUN} state), delays for a few cycles, and then manually asserts \texttt{rst\_n = 0}. This successfully proved the ability of the DUT to safely abort an active calculation and reset its datapath.

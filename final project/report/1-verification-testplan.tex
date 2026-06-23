@@ -53,6 +53,16 @@ The module behaves according to a Finite State Machine (FSM) comprising three st
     \item \textbf{DONE $\rightarrow$ IDLE}: Triggered by the output handshake (\texttt{out\_valid == 1} and \texttt{out\_ready == 1}).
 \end{itemize}
 
+%insert svg of the FSM here
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=\columnwidth]{fsm.svg}
+    \caption{Finite State Machine diagram of the GCD Module}
+    \label{fig:fsm_diagram}
+\end{figure}
+
+
 \subsection{Latency and Throughput}
 The module processes one transaction at a time. Latency is defined as the number of cycles from the input handshake edge to the first cycle where \texttt{out\_valid} is asserted.
 \begin{itemize}

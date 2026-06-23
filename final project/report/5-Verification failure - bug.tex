@@ -1,0 +1,81 @@
+\newpage
+\section{Verification Failure - Bug Injection}
+
+To demonstrate the robustness of the testbench, specifically the procedural watchdog and concurrent assertions, I forced a bug into the DUT to simulate a designer error.
+
+\subsection{Bug Description: Premature IDLE Transition}
+In the correct implementation, when the iterative subtraction loop inside the \texttt{RUN} state achieves convergence (\texttt{a\_next == b\_next}), the FSM must register the result and transition to the \texttt{DONE} state to initiate the output handshake. 
+
+For this failure scenario, the RTL was modified to simulate a designer error where the FSM bypasses the \texttt{DONE} state and transitions directly back to \texttt{IDLE}. Consequently, the \texttt{out\_valid} signal is never asserted for the consumer. 
+
+The injected bug in \texttt{gcd.sv} is shown below:
+
+\begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
+                // ----------------------------------------------------------
+                // RUN: subtractive Euclidean algorithm
+                // ----------------------------------------------------------
+                RUN: begin
+                    a_reg <= a_next;
+                    b_reg <= b_next;
+
+                    // Check convergence
+                    if (a_next == b_next) begin
+                        result_reg <= a_next;
+                        // Forced BUG: Should be state <= DONE;
+                        state      <= IDLE; 
+                    end
+                end
+\end{minted}
+
+\subsection{Testbench Detection and Logs}
+Because the DUT skips the \texttt{DONE} state, the output handshake logic of the uvm driver becomes permanently stalled waiting for \texttt{out\_valid == 1}. This would cause an infinite loop.
+
+However, the injected bug is immediately caught by two distinct mechanisms in the \texttt{gcd\_if} interface:
+\begin{itemize}
+    \item the procedural watchdog calculates the exact maximum cycles required for the specific operands. When the DUT fails to assert \texttt{out\_valid} within this window, it throws a \texttt{\$fatal} error.
+    \item the SVA \texttt{assert\_no\_infinite\_hang} independently monitors the theoretical global timeout limit and throws an error when the transaction exceeds the maximum theoretical latency.
+\end{itemize}
+
+Running the \texttt{gcd\_random\_test} with this bug prints the following transcript output:
+\newpage
+\begin{minted}[frame=single,framesep=10pt,breaklines]{text}
+# UVM_INFO @ 0: reporter [RNTST] Running test gcd_random_test...
+# [115] DRIVING: a=24 b=18 in_valid=1
+# [125] WATCHDOG ARMED a=24 b=18
+# [125] TIMEOUT LIMIT = 13 cycles
+# [125] INPUT HANDSHAKE COMPLETE
+# Waiting for output handshake... out_valid: 0, out_ready: 1
+# 
+# ** Fatal: [TIMEOUT] DUT hung! Exceeded max theoretical cycles (13)
+#    Time: 255 ns  Scope: testbench_gcd.gcd_if_inst File: testbench_gcd.sv Line: 76
+#
+# ** Error: TIMEOUT: Module exceeded maximum cycles without asserting out_valid!
+#    Time: 255 ns  Scope: testbench_gcd.gcd_if_inst.assert_no_infinite_hang File: testbench_gcd.sv Line: 155
+#
+# ** Note: $fatal : Simulation stopped.
+\end{minted}
+
+\subsection{Bug Report Ticket}
+If this were discovered during a real verification cycle, it would be logged to the design team as follows, to request a fix:
+
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!60!black,
+  title=\textbf{\textsf{[BUG-001] Premature IDLE Transition (Skipping DONE State)}},
+  fonttitle=\large\bfseries\sffamily,
+  colbacktitle=gray!15,
+  coltitle=black,
+  boxrule=1pt,
+  arc=4pt
+]
+\sffamily % Switch to sans-serif to mimic a web UI
+\renewcommand{\arraystretch}{1.5} % Add some breathing room between rows
+\begin{tabular}{@{} p{0.22\textwidth} p{0.72\textwidth} @{}}
+    \textbf{Component:} & GCD Module / FSM Logic \\
+    \textbf{Severity:} & \textcolor{red!80!black}{\textbf{CRITICAL}} (Complete datapath deadlock) \\
+    \textbf{Description:} & The FSM fails to enter the \texttt{DONE} state after mathematical convergence in the \texttt{RUN} state. It illegally jumps to \texttt{IDLE}. \\
+    \textbf{Steps to Reproduce:} & Run any transaction where $A \neq B$. \\
+    \textbf{Expected Behavior:} & When \texttt{a\_next == b\_next}, \texttt{state} should be assigned to \texttt{DONE}, triggering \texttt{out\_valid = 1}. \\
+    \textbf{Actual Behavior:} & \texttt{state} is assigned to \texttt{IDLE}. The output handshake is never initiated, stalling downstream consumers indefinitely. \\
+\end{tabular}
+\end{tcolorbox}

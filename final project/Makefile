@@ -30,7 +30,7 @@ report:
 
 report_html:
 	vcover report -details -html -output gcd_cov_html gcd_cov.ucdb
-	vcover report gcd_cov.ucdb >> gcd_cov_report_html.txt
+	vcover report gcd_cov.ucdb >> gcd_cov_report.txt
 
 clean:
 	rm -rf work transcript vsim.wlf modelsim.ini coverage_report *.ucb gcd_cov_report.txt gcd_cov_html gcd_cov.ucdb gcd_cov_report_html.txt bringup.ucdb directed.ucdb random.ucdb

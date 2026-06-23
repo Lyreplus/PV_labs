@@ -10,7 +10,7 @@ The following diagram shows the UVM architecture that I implemented.
 
 \begin{figure}[H]
     \centering
-    \includesvg[width=\columnwidth]{diagram.svg}
+    \includesvg[width=0.9\columnwidth]{diagram.svg}
     \caption{UVM testbench architecture diagram}
     \label{fig:uvm_diagram}
 \end{figure}
@@ -66,7 +66,7 @@ The \texttt{gcd\_driver} retrieves sequence items from the sequencer and drives 
 The \texttt{gcd\_monitor} passively observes the bus via a dedicated monitor clocking block. It waits for simultaneous \texttt{in\_valid} and \texttt{in\_ready} assertions to capture the incoming operands, and then waits for the \texttt{out\_valid} and \texttt{out\_ready} assertions to capture the result. The complete transaction is then written to an Analysis Port for the scoreboard to evaluate.
 
 The following code shows the passive handshake observation of the monitor using \texttt{do...while} loops:
-\newpage
+
 \begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
 // Wait for input handshake
 do begin
@@ -110,8 +110,6 @@ At the same time, the scoreboard samples the \texttt{gcd\_cg} Covergroup. This c
     \item Mathematical states, specifically whether $A > B$, $B > A$, or $A = B$.
 \end{itemize}
 
-\newpage
-
 \begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
 covergroup gcd_cg;
     option.per_instance = 1;
@@ -147,6 +145,7 @@ While the UVM environment handles the dynamic stimulus and checking, the static 
 \subsubsection{SystemVerilog Assertions (SVAs)}
 Concurrent assertions have been developed inside the uvm interface to directy monitor the \texttt{ready/valid} handshake protocols and ensure data stability during stalls. For instance, to satisfy the requirement that \texttt{gcd\_out} remains stable until the consumer is ready, the following property is asserted:
 
+\newpage
 \begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
 // REQ 12 output stability
 property p_output_stable;
@@ -234,6 +233,8 @@ assert_no_infinite_hang: assert property(p_no_infinite_hang)
 To be sure that the DUT does not hang indefinitely  (during complex mathematical edge cases, important when WIDTH as a high value), I implemented a watchdog timer. At first I've used a hardcoded value, but then I developed a watchdog that dynamically calculates the maximum theoretical cycles required for convergence based on the specific inputs captured during the handshake.
 
 If the DUT fails to assert \texttt{out\_valid} within this calculated window (plus a small margin of 10 cycles for handshake synchronization), the simulation throws a fatal error (\texttt{\$fatal}).
+
+\newpage
 
 \begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
 int count = 0;

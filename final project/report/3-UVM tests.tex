@@ -1,8 +1,10 @@
+\newpage
 \section{UVM Tests and Sequences}
 
-The verification environment utilizes three different UVM Tests to verify the DUT. Each test is a wrapper that instantiates the UVM environment, raises an objection to prevent the simulation from ending, starts a specific sequence on the sequencer of the agent, and then drops the objection once the sequence finishes.
+The verification environment uses three different UVM Tests to verify the DUT. Each test is a wrapper that instantiates the UVM environment, raises an objection to prevent the simulation from ending, starts a specific sequence on the sequencer of the agent, and then drops the objection once the sequence finishes.
+The command line examples to run each of the tests are provided in the next section (Functional Coverage Report).
 
-\subsection{Smoke Test (\texttt{gcd\_smoke\_test})}
+\subsection{Smoke (or bring-up) Test (\texttt{gcd\_smoke\_test})}
 The Smoke Test is designed to verify the fundamental connectivity of the testbench and ensure the DUT can successfully complete a basic transaction without hanging. 
 
 The Smoke Test executes the \texttt{gcd\_smoke\_seq}, which overrides the default sequence item constraints to inject a single, hardcoded transaction. The operands are hardcoded to $A = 15$ and $B = 5$, and the \texttt{out\_ready\_delay} is explicitly forced to 0. This represents the simplest possible handshake scenario, to confirm that the interface protocols, reset behaviors, and FSM transitions function correctly before introducing randomness or complex timing.
