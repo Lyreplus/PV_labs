@@ -1,0 +1,78 @@
+\section{UVM Tests and Sequences}
+
+The verification environment utilizes three different UVM Tests to verify the DUT. Each test is a wrapper that instantiates the UVM environment, raises an objection to prevent the simulation from ending, starts a specific sequence on the sequencer of the agent, and then drops the objection once the sequence finishes.
+
+\subsection{Smoke Test (\texttt{gcd\_smoke\_test})}
+The Smoke Test is designed to verify the fundamental connectivity of the testbench and ensure the DUT can successfully complete a basic transaction without hanging. 
+
+The Smoke Test executes the \texttt{gcd\_smoke\_seq}, which overrides the default sequence item constraints to inject a single, hardcoded transaction. The operands are hardcoded to $A = 15$ and $B = 5$, and the \texttt{out\_ready\_delay} is explicitly forced to 0. This represents the simplest possible handshake scenario, to confirm that the interface protocols, reset behaviors, and FSM transitions function correctly before introducing randomness or complex timing.
+
+\subsection{Directed Edge Case Test (\texttt{gcd\_directed\_test})}
+To ensure the DUT properly handles boundary conditions and early exit scenarios (with only 1 cycle latency), the \texttt{gcd\_directed\_test} executes the \texttt{gcd\_directed\_edge\_case\_seq}. 
+
+Instead of relying on random probability to hit specific mathematical extremes, this sequence explicitly utilizes a custom \texttt{send\_directed\_item()} task to add targeted operand combinations. The following edge cases are verified:
+\begin{itemize}
+    \item \textbf{Zero Operands:} $\gcd(0,0)$, $\gcd(A,0)$, and $\gcd(0,B)$. These test the immediate early-exit transition from \texttt{IDLE} directly to \texttt{DONE}.
+    \item \textbf{Equal Operands:} $\gcd(A,A)$. This verifies the immediate equality check bypassing the iterative subtraction loop.
+    \item \textbf{Maximum Boundaries:} Combinations utilizing $(2^{WIDTH}) - 1$. This stresses the datapath width limits and verifies the combinatorial subtraction logic under maximum bit-toggle conditions.
+\end{itemize}
+
+\begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
+task body();
+    `uvm_info("SEQ", "Executing directed edge case sequence", UVM_LOW)
+
+    send_directed_item(0, 0);                 // GCD(0, 0)
+    send_directed_item(18, 0);                // GCD(A != 0, B = 0)
+    send_directed_item(0, 24);                // GCD(A = 0, B != 0)
+    send_directed_item(27, 27);               // GCD(A = B)
+    
+    // Max values (WIDTH-1)
+    send_directed_item((1 << WIDTH) - 1, 5);  // GCD(MAX, B)
+    send_directed_item(5, (1 << WIDTH) - 1);  // GCD(A, MAX)
+    send_directed_item((1 << WIDTH) - 1, (1 << WIDTH) - 1); // GCD(MAX, MAX)
+
+    send_directed_item(0, (1 << WIDTH) - 1); // GCD(0, MAX)
+    send_directed_item((1 << WIDTH) - 1, 0); // GCD(MAX, 0)
+endtask
+\end{minted}
+
+\subsection{Constrained Random Test (\texttt{gcd\_random\_test})}
+The main part of the functional verification is performed by the \texttt{gcd\_random\_test}, which runs the \texttt{gcd\_random\_seq}. This test stresses the general iterative subtractive algorithm ($1+N$ cycles latency) and the output stalling logic.
+
+\begin{minted}[frame=single,framesep=10pt,breaklines]{SystemVerilog}
+class gcd_random_seq extends uvm_sequence #(gcd_sequence_item);
+    `uvm_object_utils(gcd_random_seq)
+
+    rand int number_transactions;
+
+    constraint c_number_of_transactions {
+        number_transactions inside {[250:500]}; // rand between 250 and 500
+    }
+
+    function new(string name = "gcd_random_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        if (!randomize()) begin
+            `uvm_error("SEQ", "Randomization failed for number of transactions")
+        end
+        
+        `uvm_info("SEQ", $sformatf("Executing Random Sequence with %0d transactions", number_transactions), UVM_LOW)
+
+        for (int i = 0; i < number_transactions; i++) begin
+            req = gcd_sequence_item::type_id::create("req");
+            $display("Randomizing transaction %0d/%0d", i+1, number_transactions);
+            start_item(req);
+            if (!req.randomize()) begin
+                `uvm_error("SEQ", "Randomization failed for transaction")
+            end
+            $display("Finishing transactions");
+            finish_item(req);
+            $display("Transactions finished");
+        end
+    endtask
+endclass
+\end{minted}
+
+The sequence randomizes the \texttt{number\_transactions} variable to execute between 250 and 500 transactions. During this sequence, the \texttt{out\_ready\_delay} parameter within the sequence items frequently forces the driver to stall the output handshake, in order to test the \texttt{DONE} state stability requirement and the concurrent assertions monitoring it.

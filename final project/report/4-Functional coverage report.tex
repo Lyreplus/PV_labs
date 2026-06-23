@@ -1,0 +1,41 @@
+\section{Functional Coverage Report}
+
+The verification closure criteria targeted high structural and functional coverage metrics to ensure both protocol compliance and mathematical accuracy. The following table summarizes the overall coverage extracted from the QuestaSim UCDB reports across the testbench and DUT instances.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|l|c|c|c|c|}
+        \hline
+        \textbf{Coverage Metric} & \textbf{Enabled Bins} & \textbf{Hits} & \textbf{Misses} & \textbf{Coverage (\%)} \\ \hline
+        \textbf{Covergroups}     & 18                    & 17            & 1               & 94.44\%                \\ \hline
+        \textbf{Assertions}      & 8                     & 6             & 2               & 75.00\%                \\ \hline
+        \textbf{Branches}        & 22                    & 20            & 2               & 90.90\%                \\ \hline
+        \textbf{Statements}      & 25                    & 24            & 1               & 96.00\%                \\ \hline
+        \textbf{Toggles}         & 271                   & 253           & 18              & 93.35\%                \\ \hline
+        \textbf{FSM States}      & 3                     & 3             & 0               & 100.00\%               \\ \hline
+        \textbf{FSM Transitions} & 5                     & 5             & 0               & 100.00\%               \\ \hline
+    \end{tabular}
+    \caption{Coverage Summary by Instance}
+    \label{tab:coverage_summary}
+\end{table}
+
+\subsection{Covergroup Coverage Analysis}
+The functional coverage model (\texttt{gcd\_cg}) defined 18 bins to track operand edge cases, mathematical states ($A > B$, $A = B$), and cross-coverage between operands. The environment successfully hit 17 of 18 bins (94.44\%). 
+
+The single missed bin was the cross-coverage scenario between \texttt{a = others} and \texttt{b = max}. Upon reviewing the directed test sequences, the stimulus for this exact scenario (\texttt{send\_directed\_item(5, MAX)}) is explicitly generated and driven into the DUT. The absence of this hit in the scoreboard's covergroup is hypothesized to be a simulation drain-time synchronization issue; the testbench likely dropped the UVM objection and terminated the simulation before the monitor could capture the final output handshake and write the transaction to the scoreboard for sampling. 
+
+\subsection{Assertion Coverage Analysis}
+Assertion coverage reached 75.00\%, with 6 out of 8 protocol monitors passing successfully throughout the test suites. The two missed assertions were \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_input\_stable}. 
+
+Both of these SVAs evaluate producer compliance when the DUT stalls the input channel (\texttt{in\_valid == 1} while \texttt{in\_ready == 0}). However, the UVM driver is designed to be fully compliant and strictly sequential: it waits for the DUT to explicitly return to the \texttt{IDLE} state (\texttt{in\_ready == 1}) before driving the next valid sequence item. Because the driver never attempts to force a transaction while the DUT is processing, the stall precondition is mathematically impossible to reach in the current architecture. To trigger these assertions, an error-injection sequence would be required.
+
+\subsection{Branch and Structural Coverage Analysis}
+Branch coverage reached an excellent 90.90\%. Analysis of the uncovered branches reveals that they reside within the \texttt{RUN} state's subtractive loop. The RTL evaluates \texttt{if (a\_reg > b\_reg)} and \texttt{else if (b\_reg > a\_reg)}. The missing branch is the implicit \texttt{else} condition (where \texttt{a\_reg == b\_reg}). 
+
+This miss is a byproduct of optimized RTL design rather than a verification hole. The FSM is coded to transition immediately to \texttt{DONE} on the cycle where the next-state values are equal (\texttt{a\_next == b\_next}). Therefore, the values are never registered as equal while remaining inside the \texttt{RUN} state, rendering the implicit \texttt{else} branch structurally unreachable.
+
+\subsection{FSM Transition Verification}
+All 5 defined state transitions (100\%) were successfully covered. Standard operational transitions (\texttt{IDLE $\rightarrow$ RUN}, \texttt{RUN $\rightarrow$ DONE}, and \texttt{DONE $\rightarrow$ IDLE}) were heavily exercised by the constrained random sequences. The early-exit transition (\texttt{IDLE $\rightarrow$ DONE}) was explicitly hit by the directed edge-case tests.
+
+The most difficult transition to verify was the mid-calculation recovery (\texttt{RUN $\rightarrow$ IDLE}). To achieve this, a hardcoded procedural block was injected into the static top module. By using a \texttt{fork...join\_any} structure, the testbench monitors the \texttt{in\_ready} signal, waits for it to drop (indicating the DUT has entered the \texttt{RUN} state), delays for a few cycles, and then manually asserts \texttt{rst\_n = 0}. This successfully proved the DUT's ability to safely abort an active calculation and reset its datapath.

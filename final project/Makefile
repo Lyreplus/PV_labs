@@ -16,7 +16,7 @@ setup:
 	vlog +acc $(TESTBENCH)_$(UNIT).sv
 
 run_all: setup 
-	$(MAKE) run TEST=gcd_bringup_test UCDB_OUT=bringup.ucdb
+	$(MAKE) run TEST=gcd_smoke_test UCDB_OUT=smoke.ucdb
 	$(MAKE) run TEST=gcd_directed_test UCDB_OUT=directed.ucdb
 	$(MAKE) run TEST=gcd_random_test UCDB_OUT=random.ucdb
 	vcover merge gcd_cov.ucdb bringup.ucdb directed.ucdb random.ucdb

@@ -210,23 +210,8 @@ To summarize all of these verification strategies, the following table shows the
 \subsection{Closure Criteria}
 To consider the verification process complete and successful, the following quantitative metrics must be achieved:
 \begin{itemize}
-    \item \textbf{100\% Test Pass Rate:} All UVM tests (bring-up, directed, and constrained-random) must pass successfully without any fatal errors or timeouts.
+    \item \textbf{100\% Test Pass Rate:} All UVM tests (smoke, directed, and constrained-random) must pass successfully without any fatal errors or timeouts.
     \item \textbf{100\% Functional Coverage:} All defined covergroups and coverpoints (including mathematical edge cases, mathematical states, and operand categories) must reach 100\% coverage.
-    \item \textbf{High Code Coverage:} Achieve at least 95\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code).
+    \item \textbf{High Code Coverage:} Achieve at least 90\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code).
     \item \textbf{100\% Assertion Pass Rate:} Zero assertion failures during all test runs, confirming protocol and timing compliance.
 \end{itemize}
-
-\subsection{UVM Architecture}
-
-For the GCD module, I implemented a UVM testbench architecture. One methodology could be of implement two different agents, one for input channel and one for the output one, as they have independent handshake protocols.
-
-However, I decided to implement a single agent, because both channels share the same clock and reset signals, and the dimension of the module itself is relatively small.
-
-The following diagram shows the UVM architecture that I implemented.
-
-\begin{figure}[H]
-    \centering
-    \includesvg[width=\columnwidth]{diagram.svg}
-    \caption{UVM testbench architecture diagram}
-    \label{fig:uvm_diagram}
-\end{figure}

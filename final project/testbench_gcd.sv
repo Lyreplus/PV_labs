@@ -190,11 +190,10 @@ package gcd_package;
     endclass
 
     // Sequences
-    // Bring up sequence
-    class gcd_bringup_seq extends uvm_sequence #(gcd_sequence_item);
-        `uvm_object_utils(gcd_bringup_seq)
+    class gcd_smoke_seq extends uvm_sequence #(gcd_sequence_item);
+        `uvm_object_utils(gcd_smoke_seq)
 
-        function new(string name = "gcd_bringup_seq");
+        function new(string name = "gcd_smoke_seq");
             super.new(name);
         endfunction
 
@@ -222,11 +221,8 @@ package gcd_package;
             `uvm_info("SEQ", "Executing directed edge case sequence", UVM_LOW)
 
             send_directed_item(0, 0); // GCD(0, 0)
-
             send_directed_item(18, 0); //GCD(18, 0), A != 0, B = 0
-
             send_directed_item(0, 24); //GCD(0, 24), A = 0, B != 0
-
             send_directed_item(27, 27); //GCD(27, 27), A = B
 
             // Max values
@@ -344,7 +340,7 @@ package gcd_package;
 
                         $display("[%0t] INPUT HANDSHAKE COMPLETE", $time);
 
-                        // vif.cb.in_valid <= 1'b0;
+                        vif.cb.in_valid <= 1'b0;
 
 
                         // output handshake
@@ -610,15 +606,15 @@ package gcd_package;
     endclass
 
     // 1- bringup
-    class gcd_bringup_test extends gcd_base_test;
-        `uvm_component_utils(gcd_bringup_test)
+    class gcd_smoke_test extends gcd_base_test;
+        `uvm_component_utils(gcd_smoke_test)
 
-        function new(string name = "gcd_bringup_test", uvm_component parent = null);
+        function new(string name = "gcd_smoke_test", uvm_component parent = null);
             super.new(name, parent);
         endfunction
 
         task run_phase(uvm_phase phase);
-            gcd_bringup_seq seq = gcd_bringup_seq::type_id::create("seq");
+            gcd_smoke_seq seq = gcd_smoke_seq::type_id::create("seq");
             phase.raise_objection(this);
             seq.start(environment.agent.sequencer);
             phase.drop_objection(this);
