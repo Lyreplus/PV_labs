@@ -423,6 +423,7 @@ package gcd_package;
 
                         tr.a = vif.mon_cb.a_in;
                         tr.b = vif.mon_cb.b_in;
+                        analysis_port.write(tr);
 
                         do begin
                             @(vif.mon_cb);
