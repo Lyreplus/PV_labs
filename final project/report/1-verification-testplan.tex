@@ -146,8 +146,8 @@ The module processes one transaction at a time. Latency is defined as the number
     REQ-007 & SVA: \texttt{assert\_reset\_behavior} & 100\% Code Coverage and Assertion Pass \\
     REQ-008 & SVA: \texttt{assert\_reset\_behavior} & 100\% Code Coverage and Assertion Pass \\
     REQ-009 & SVA: \texttt{assert\_in\_valid\_no\_drop} and \texttt{assert\_out\_valid\_no\_drop} & 100\% Assertion Pass \\
-    REQ-010 & \texttt{gcd\_directed\_test} & 100\% Scoreboard Match \\ 
-    REQ-011 & \texttt{gcd\_random\_test} & 100\% Scoreboard Match \\
+    REQ-010 & \texttt{gcd\_directed\_test} & Scoreboard Match \&  Watchdog limit check \\ 
+    REQ-011 & \texttt{gcd\_random\_test} & Scoreboard Match \& Watchdog limit check \\
     REQ-012 & SVA: \texttt{assert\_output\_stable} & 100\% Assertion Pass \\
     REQ-013 & SVA: \texttt{assert\_in\_ready\_drop} & 100\% Assertion Pass \\
     REQ-014 & Procedural watchdog: \texttt{MAX\_TIMEOUT} & Zero UVM Errors (No timeout)\\
@@ -220,8 +220,8 @@ To summarize all of these verification strategies, the following table shows the
 \subsection{Closure Criteria}
 To consider the verification process complete and successful, the following quantitative metrics must be achieved:
 \begin{itemize}
-    \item \textbf{100\% Test Pass Rate:} All UVM tests (smoke, directed, and constrained-random) must pass successfully without any fatal errors or timeouts.
-    \item \textbf{100\% Functional Coverage:} All defined covergroups and coverpoints (including mathematical edge cases, mathematical states, and operand categories) must reach 100\% coverage.
-    \item \textbf{High Code Coverage:} Achieve at least 90\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code).
-    \item \textbf{100\% Assertion Pass Rate:} Zero assertion failures during all test runs, confirming protocol and timing compliance.
+    \item all UVM tests (smoke, directed, and constrained-random) must pass successfully without any fatal errors or timeouts (100\% pass rate)
+    \item all defined covergroups and coverpoints (including mathematical edge cases, mathematical states, and operand categories) must reach full coverage (100\% functional coverage), or at least 90\% with documented justification for any unreachable or unsampled bins
+    \item achieve at least 90\% Line, Branch, and Toggle coverage. Any uncovered code must be manually reviewed and justified (e.g., unreachable code)
+    \item zero assertion failures during all test runs, confirming protocol and timing compliance (100\% assertion pass rate).
 \end{itemize}
